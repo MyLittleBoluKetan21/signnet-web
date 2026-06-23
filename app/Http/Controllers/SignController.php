@@ -134,7 +134,7 @@ class SignController extends Controller
                 ], 400);
             }
 
-            $response = Http::timeout(120)->post("{$this->flaskUrl}/api/train");
+            $response = Http::timeout(400)->post("{$this->flaskUrl}/api/train");
 
             if ($response->successful()) {
                 $trainResult = $response->json();

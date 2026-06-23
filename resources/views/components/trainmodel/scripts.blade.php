@@ -368,18 +368,28 @@
     function prosesTraining() {
         const btn = document.getElementById('btn-train');
         const originalHTML = btn.innerHTML;
-        btn.disabled = true;
-        btn.innerHTML = `<i class="fa-solid fa-spinner animate-spin"></i> MEMPROSES...`;
-        addLog("SISTEM: Memulai proses training model AI...");
+        
+        // 1. Inisialisasi AbortController untuk membuat timeout kustom (misal: 5 menit / 300.000 ms)
+        const controller = new AbortController();
+        const timeoutId = setTimeout(() => controller.abort(), 300000); 
 
+        btn.disabled = true;
+        btn.innerHTML = `<i class="fa-solid fa-spinner animate-spin"></i> MEMPROSES TRAINING...`;
+        addLog("SISTEM: Memulai proses training model AI... (Mohon tunggu, proses ini memakan waktu beberapa menit)");
+
+        // 2. Kirim request dengan menyertakan signal dari AbortController
         fetch('/train-model', {
             method: 'POST',
             headers: {
                 'Content-Type': 'application/json',
                 'X-CSRF-TOKEN': csrfToken
-            }
+            },
+            signal: controller.signal
         })
-        .then(res => res.json().then(data => ({ ok: res.ok, data })))
+        .then(res => {
+            clearTimeout(timeoutId); // Hapus timer jika server merespon tepat waktu
+            return res.json().then(data => ({ ok: res.ok, data }));
+        })
         .then(({ ok, data }) => {
             if (!ok || data.status !== 'success') {
                 throw new Error(data.message || 'Training gagal tanpa keterangan.');
@@ -390,13 +400,13 @@
 
             el.accuracyValue.innerText = akurasi + '%';
             
-            // 1. Amankan performa: Kosongkan kontainer terlebih dahulu
+            // Amankan performa: Kosongkan kontainer terlebih dahulu
             el.reportTable.innerHTML = '';
 
             const report = data.classification_report || {};
             const skip   = ['accuracy', 'macro avg', 'weighted avg'];
 
-            // 2. Gunakan array buffer untuk menampung HTML di memori RAM terlebih dahulu
+            // Gunakan array buffer untuk menampung HTML di memori RAM terlebih dahulu
             let htmlBuffer = [];
 
             // Cek apakah mode saat ini adalah light mode atau dark mode
@@ -407,25 +417,23 @@
                 const metrics  = report[key];
                 const f1       = (metrics['f1-score'] * 100).toFixed(0);
                 
-                // --- PERBAIKAN FIXED COLOR MENGGUNAKAN HEX CODE (ANTI-PURGE TAILWIND) ---
-                let hexColor = '#ef4444'; // Default Red/Rose
+                // --- FIXED COLOR MENGGUNAKAN HEX CODE (ANTI-PURGE TAILWIND) ---
+                let hexColor = '#ef4444'; 
                 let hexBorder = 'rgba(239, 68, 68, 0.3)';
                 
                 if (f1 >= 70) {
-                    hexColor = isLightMode ? '#059669' : '#34d399'; // Emerald-600 (Light) atau Emerald-400 (Dark)
+                    hexColor = isLightMode ? '#059669' : '#34d399'; 
                     hexBorder = isLightMode ? 'rgba(5, 150, 105, 0.3)' : 'rgba(52, 211, 153, 0.3)';
                 } else if (f1 >= 40) {
-                    hexColor = isLightMode ? '#d97706' : '#fbbf24'; // Amber-600 (Light) atau Amber-400 (Dark)
+                    hexColor = isLightMode ? '#d97706' : '#fbbf24'; 
                     hexBorder = isLightMode ? 'rgba(217, 119, 6, 0.3)' : 'rgba(251, 191, 36, 0.3)';
                 } else {
-                    hexColor = isLightMode ? '#dc2626' : '#f87171'; // Rose-600 (Light) atau Rose-400 (Dark)
+                    hexColor = isLightMode ? '#dc2626' : '#f87171'; 
                 }
 
-                // --- PERBAIKAN BORDER BAGIAN DALAM KOTAK AGAR MUNCUL DI LIGHT MODE ---
                 const innerBorderColor = isLightMode ? 'rgba(0, 0, 0, 0.1)' : 'rgba(255, 255, 255, 0.08)';
                 const innerTextColor = isLightMode ? 'text-slate-800' : 'text-white';
 
-                // Masukkan string HTML ke dalam array buffer dengan inline style pengunci warna
                 htmlBuffer.push(`
                     <div class="bg-slate-900/50 dark:bg-slate-900/50 border p-4 rounded-3xl animate__animated animate__fadeInUp" style="border-color: ${hexBorder};">
                         <div class="text-center mb-3">
@@ -446,19 +454,26 @@
                 `);
             });
 
-            // 3. Inject seluruh HTML sekaligus ke dalam DOM setelah looping selesai
             el.reportTable.innerHTML = htmlBuffer.join('');
 
             openModalResult();
             state.sessionStats = {};
             updateUIStats();
 
-            AppAlert.fire('success', 'Training Selesai', `Model AI berhasil diperbarui dengan akurasi <b>${akurasi}%</b>.`); // Menggunakan AppAlert kustom
+            AppAlert.fire('success', 'Training Selesai', `Model AI berhasil diperbarui dengan akurasi <b>${akurasi}%</b>.`); 
         })
         .catch(err => {
-            const msg = err?.message || 'Terjadi kesalahan sistem.';
-            addLog(`ERROR: ${msg}`);
-            AppAlert.fire('error', 'Training Gagal', msg); // Menggunakan AppAlert kustom
+            clearTimeout(timeoutId);
+            
+            // Cek apakah error dipicu oleh abort() akibat batas waktu habis
+            if (err.name === 'AbortError') {
+                addLog("ERROR: Waktu tunggu (timeout) habis. Server memproses terlalu lama.");
+                AppAlert.fire('error', 'Waktu Tunggu Habis', 'Proses training memakan waktu terlalu lama di server. Silakan cek status server Flask/Railway Anda.');
+            } else {
+                const msg = err?.message || 'Terjadi kesalahan sistem.';
+                addLog(`ERROR: ${msg}`);
+                AppAlert.fire('error', 'Training Gagal', msg);
+            }
         })
         .finally(() => {
             btn.disabled   = false;

@@ -1,6 +1,6 @@
 <div id="sidebarOverlay" class="fixed inset-0 bg-black/60 backdrop-blur-sm z-[998] hidden opacity-0 transition-opacity duration-200 md:hidden"></div>
 
-<aside id="sidebar" class="fixed top-0 bottom-0 left-0 md:sticky h-screen max-h-screen overflow-y-auto md:overflow-visible bg-[#020617] dark:bg-[#020617] flex flex-col items-start justify-between py-6 border-r border-white/10 shadow-xl w-64 md:w-24 md:hover:w-64 transition-all duration-200 ease-in-out group/sidebar z-[999] -translate-x-full md:translate-x-0 custom-scroll">
+<aside id="sidebar" class="fixed top-0 bottom-0 left-0 md:sticky h-screen bg-[#020617] dark:bg-[#020617] flex flex-col items-start justify-between py-6 border-r border-white/10 shadow-xl w-64 md:w-24 md:hover:w-64 transition-all duration-200 ease-in-out group/sidebar overflow-hidden z-[999] -translate-x-full md:translate-x-0">
     
     <div class="flex items-center justify-start w-full px-6 font-black text-2xl tracking-tighter gap-4 mb-6 shrink-0">
         <div class="bg-indigo-600 rounded-lg min-w-[44px] h-11 flex items-center justify-center text-white text-base shadow-md shadow-indigo-600/20">
@@ -11,7 +11,7 @@
         </span>
     </div>
 
-    <nav class="sidebar-nav flex flex-col gap-1 w-full px-3 flex-1 md:overflow-y-auto overflow-x-hidden custom-scroll">
+    <nav class="sidebar-nav flex flex-col gap-1 w-full px-3 flex-1 overflow-y-auto overflow-x-hidden custom-scroll">
         
         <div class="flex md:hidden md:group-hover/sidebar:flex text-[10px] font-bold text-slate-500 tracking-wider uppercase px-3 pt-3 pb-1 transition-all duration-200 whitespace-nowrap">
             Ringkasan Performa
@@ -55,7 +55,7 @@
         </a>
     </nav>
 
-    <div class="flex flex-col gap-2 w-full px-3 shrink-0 mt-auto">
+    <div class="flex flex-col gap-2 w-full px-3 shrink-0">
         <button id="themeToggleSidebar" type="button" class="flex items-center gap-4 w-full h-12 px-3 rounded-xl text-slate-400 hover:bg-white/5 transition-all duration-150 text-left cursor-pointer select-none">
             <div class="w-11 h-11 flex items-center justify-center shrink-0">
                 <i id="sidebar-theme-icon" class="fa-solid fa-moon text-xl"></i>

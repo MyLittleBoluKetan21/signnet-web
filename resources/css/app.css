@@ -1,0 +1,65 @@
+@tailwind base;
+@tailwind components;
+@tailwind utilities;
+
+:root {
+    --blue: #3b82f6;
+    --blue-light: #60a5fa;
+
+    --bg-page: #060d1f;
+    --bg-card: #0f1729;
+    --bg-input: #182038;
+
+    --dark-bg: #0a0f1e;
+    --dark-card: #0d1526;
+    --dark-card2: #111827;
+
+    --border: rgba(59,130,246,0.2);
+    --border-login: #1e2d4a;
+
+    --text: #ffffff;
+    --text-primary: #e8edf8;
+    --text-label: #c5cfe8;
+    --text-muted: #94a3b8;
+
+    --footer-bg: #060a14;
+    --hero-overlay: rgba(10,15,30,0.7);
+    --nav-bg: rgba(10,15,30,0.95);
+
+    --accent: #2563eb;
+    --accent-hover: #1d4ed8;
+    --border-focus: #2563eb;
+    --brand-blue: #3b82f6;
+    --error: #f87171;
+}
+
+[data-theme="light"] {
+    --blue: #2563eb;
+    --blue-light: #3b82f6;
+
+    --bg-page: #f8fafc;
+    --bg-card: #ffffff;
+    --bg-input: #f1f5f9;
+
+    --dark-bg: #f8fafc;
+    --dark-card: #ffffff;
+    --dark-card2: #f1f5f9;
+
+    --border: rgba(59,130,246,0.3);
+    --border-login: #cbd5e1;
+
+    --text: #0f172a;
+    --text-primary: #0f172a;
+    --text-label: #334155;
+    --text-muted: #475569;
+
+    --footer-bg: #e2e8f0;
+    --hero-overlay: linear-gradient(to right, rgba(255,255,255,0.4), transparent);
+    --nav-bg: rgba(255,255,255,0.95);
+
+    --accent: #2563eb;
+    --accent-hover: #1d4ed8;
+    --border-focus: #2563eb;
+    --brand-blue: #2563eb;
+    --error: #ef4444;
+}

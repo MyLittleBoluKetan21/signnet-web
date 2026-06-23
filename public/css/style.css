@@ -1,0 +1,499 @@
+*, *::before, *::after { box-sizing: border-box; margin: 0; padding: 0; }
+
+:root {
+    --blue: #3b82f6;
+    --blue-light: #60a5fa;
+    
+    /* DARK MODE CYBERPUNK SEAMLESS GRADIENT */
+    --dark-bg: linear-gradient(180deg, 
+        #050914 0%,    /* Beranda: Ultra Deep Space */
+        #0a122c 22%,   /* Tentang: Cosmic Navy */
+        #151233 48%,   /* Fitur: Deep Tech Violet */
+        #0b1636 72%,   /* Daftar Isyarat: Cyber Blue */
+        #111c44 90%,   /* Deteksi: Deep Card Blue */
+        #03050a 100%   /* Footer: Jet Black */
+    );
+    
+    --dark-card: linear-gradient(145deg, #0d1730 0%, #132247 100%);
+    --dark-card2: linear-gradient(145deg, #111e3d 0%, #182c59 100%);
+    --border: rgba(59, 130, 246, 0.25);
+    --text: #ffffff;
+    --text-muted: #94a3b8;
+    --footer-bg: transparent; 
+    --hero-overlay: linear-gradient(135deg, rgba(6, 11, 25, 0.85) 0%, rgba(17, 28, 68, 0.7) 100%);
+    --nav-bg: rgba(6, 11, 25, 0.75);
+}
+
+[data-theme="light"] {
+    --blue: #2563eb;
+    --blue-light: #3b82f6;
+    
+    /* LIGHT MODE DYNAMIC FRUITY GRADIENT */
+    --dark-bg: linear-gradient(180deg, 
+        #f0f7ff 0%,    /* Beranda: Fresh Sky Clean */
+        #e0e7ff 20%,   /* Tentang: Soft Lavender Mist */
+        #e0f2fe 45%,   /* Fitur: Ocean Ice Blue */
+        #f0fdf4 70%,   /* Daftar Isyarat: Fresh Mint Green */
+        #fff1f2 88%,   /* Deteksi: Warm Soft Coral */
+        #f8fafc 100%   /* Footer: Clean Slate */
+    );
+    
+    --dark-card: linear-gradient(145deg, #ffffff 0%, #f0fdf4 100%); 
+    --dark-card2: linear-gradient(145deg, #f8fafc 0%, #e0f2fe 100%); 
+    --border: rgba(37, 99, 235, 0.2);
+    --text: #0f172a;
+    --text-muted: #475569;
+    --footer-bg: transparent; 
+    --hero-overlay: linear-gradient(135deg, rgba(239, 246, 255, 0.9) 0%, rgba(224, 231, 255, 0.6) 100%);
+    --nav-bg: rgba(239, 246, 255, 0.75);
+}
+
+html { scroll-behavior: smooth; }
+
+body { 
+    font-family: 'Inter', sans-serif; 
+    background: var(--dark-bg); 
+    color: var(--text); 
+    overflow-x: hidden; 
+    transition: background 0.4s ease-in-out, color 0.4s ease-in-out; 
+    will-change: background, color;
+}
+
+/* --- NAVBAR DESKTOP BASE --- */
+nav { 
+    position: fixed; top: 0; left: 0; right: 0; z-index: 1030; 
+    display: flex; align-items: center; justify-content: space-between; 
+    padding: 18px 60px; background: transparent;
+    transition: all 0.4s cubic-bezier(0.4, 0, 0.2, 1); 
+}
+.nav-drawer-footer {
+    display: none;
+}
+nav.scrolled { 
+    background: var(--nav-bg); 
+    backdrop-filter: blur(16px); 
+    -webkit-backdrop-filter: blur(16px);
+    box-shadow: 0 4px 30px rgba(0,0,0,0.05);
+    padding: 12px 60px;
+}
+.logo { font-size: 1.5rem; font-weight: 800; letter-spacing: -0.5px; color: var(--text); text-decoration: none; z-index: 1050; transition: color 0.4s ease;}
+.logo span { color: var(--blue); }
+
+.nav-links { position: absolute; left: 50%; transform: translateX(-50%); display: flex; gap: 36px; list-style: none; }
+.nav-links li { display: flex; align-items: center; }
+.nav-links a { 
+    display: inline-block;
+    color: var(--text-muted); 
+    text-decoration: none; 
+    font-size: 0.9rem; 
+    font-weight: 500; 
+    transition: all 0.3s cubic-bezier(0.34, 1.56, 0.64, 1); 
+    position: relative;
+    padding: 4px 0;
+}
+.nav-links a:hover { 
+    color: var(--text); 
+    transform: scale(1.1); 
+}
+.nav-links a::after {
+    content: '';
+    position: absolute;
+    bottom: 0;
+    left: 50%;
+    width: 0;
+    height: 2px;
+    background: var(--blue);
+    transition: all 0.3s ease;
+    transform: translateX(-50%);
+}
+.nav-links a:hover::after { width: 100%; }
+
+.nav-right { width: 100px; display: flex; justify-content: flex-end; align-items: center; gap: 12px; z-index: 1050; }
+.theme-toggle-btn { background: var(--dark-card2); border: 1px solid var(--border); color: var(--text); width: 40px; height: 40px; border-radius: 50%; cursor: pointer; display: flex; align-items: center; justify-content: center; font-size: 1.1rem; transition: all 0.4s ease; }
+.theme-toggle-btn:hover { border-color: var(--blue); color: var(--blue); transform: scale(1.1) rotate(15deg); }
+
+/* --- BUTTON MENUS & LAYERS UTILITY --- */
+.menu-toggle-btn {
+    display: none;
+    background: var(--dark-card2);
+    border: 1px solid var(--border);
+    color: var(--text);
+    width: 40px;
+    height: 40px;
+    border-radius: 10px;
+    cursor: pointer;
+    align-items: center;
+    justify-content: center;
+    font-size: 1.2rem;
+    transition: all 0.4s ease;
+}
+.menu-toggle-btn:hover { border-color: var(--blue); color: var(--blue); }
+
+.nav-overlay {
+    position: fixed; 
+    inset: 0; 
+    background: rgba(6, 11, 25, 0.5); 
+    backdrop-filter: blur(8px);
+    -webkit-backdrop-filter: blur(8px);
+    z-index: 1010; 
+    display: none; 
+    opacity: 0; 
+    transition: opacity 0.3s ease;
+}
+.nav-overlay.active {
+    display: block;
+    opacity: 1;
+}
+
+/* --- ANIMATION SYSTEM (KODE LAMA DIMASUKKAN KEMBALI) --- */
+section { 
+    min-height: 100vh; 
+    display: flex; 
+    flex-direction: column; 
+    justify-content: center; 
+    padding: 100px 60px 80px; 
+    transition: opacity 1s ease, transform 1s ease; /* Dikembalikan ke durasi kode lama (1s) */
+    background: transparent !important; 
+}
+
+.animate-item {
+    opacity: 0;
+    transform: translateY(50px) scale(0.95); /* Dikembalikan ke takaran transform kode lama */
+    transition: opacity 0.8s cubic-bezier(0.22, 1, 0.36, 1), 
+                transform 0.8s cubic-bezier(0.22, 1, 0.36, 1);
+    will-change: opacity, transform;
+}
+
+.animate-item.show {
+    opacity: 1;
+    transform: translateY(0) scale(1);
+}
+
+/* Efek Glass Card & Fade In dari Modul Lama */
+.glass-card { 
+    will-change: transform, box-shadow; 
+    transition: background 0.4s, border-color 0.4s, transform 0.5s cubic-bezier(0.2, 0.8, 0.2, 1), box-shadow 0.5s cubic-bezier(0.2, 0.8, 0.2, 1); 
+}
+
+@keyframes simpleFade { 
+    from { opacity: 0; transform: translateY(15px); } 
+    to { opacity: 1; transform: translateY(0); } 
+}
+.animate-card { 
+    animation: simpleFade 0.6s cubic-bezier(0.16, 1, 0.3, 1) forwards; 
+    opacity: 0; 
+    will-change: transform, opacity; 
+}
+.delay-1 { animation-delay: 0.05s; } 
+.delay-2 { animation-delay: 0.12s; } 
+.delay-3 { animation-delay: 0.19s; }
+.delay-4 { animation-delay: 0.26s; } 
+.delay-5 { animation-delay: 0.33s; } 
+.delay-6 { animation-delay: 0.40s; }
+
+/* --- BUTTONS --- */
+.btn-primary { 
+    display: inline-flex; 
+    align-items: center;
+    gap: 10px;
+    background: var(--blue); 
+    color: #fff; 
+    padding: 14px 36px; 
+    border-radius: 50px; 
+    font-weight: 700; 
+    font-size: 0.95rem;
+    text-decoration: none; 
+    border: none; 
+    cursor: pointer; 
+    box-shadow: 0 4px 24px rgba(59,130,246,0.3);
+    transition: all 0.3s cubic-bezier(0.34, 1.56, 0.64, 1); 
+} 
+.btn-primary i { transition: transform 0.3s ease; }
+.btn-primary:hover { 
+    background: #2563eb; 
+    transform: translateY(-5px) scale(1.05); 
+    box-shadow: 0 12px 40px rgba(59,130,246,0.5); 
+}
+.btn-primary:hover i { transform: translateX(6px); }
+.btn-primary:active { transform: translateY(0) scale(0.98); }
+
+/* --- BERANDA (HERO RESTRUCTURED WITH GRID) --- */
+#beranda { 
+    position: relative; 
+    padding: 0 60px; 
+    overflow: hidden; 
+    background: transparent !important;
+}
+.hero-split-grid {
+    display: grid;
+    grid-template-columns: 1.2fr 0.8fr;
+    gap: 40px;
+    align-items: center;
+    width: 100%;
+    max-width: 1200px;
+    margin: 80px auto 0;
+    z-index: 2;
+}
+.hero-text-side { max-width: 680px; }
+.hero-label { font-size: 0.75rem; font-weight: 700; letter-spacing: 4px; color: var(--blue-light); margin-bottom: 20px; text-transform: uppercase; transition: color 0.4s ease; }
+.hero-title { font-size: clamp(2.2rem, 5vw, 4rem); font-weight: 900; line-height: 1.15; margin-bottom: 24px; color: var(--text); transition: color 0.4s ease; }
+.hero-title .highlight { color: var(--blue-light); transition: color 0.4s ease; }
+.hero-desc { font-size: 1.05rem; color: var(--text-muted); line-height: 1.7; margin-bottom: 36px; transition: color 0.4s ease; }
+
+.hero-img-side {
+    display: flex;
+    justify-content: center;
+    align-items: center;
+    width: 100%;
+}
+.hero-img-container {
+    width: 100%;
+    max-width: 440px;
+    aspect-ratio: 1/1;
+    background: var(--dark-card);
+    border: 1px solid var(--border);
+    border-radius: 30% 70% 70% 30% / 30% 30% 70% 70%;
+    box-shadow: 0 20px 50px rgba(0,0,0,0.15);
+    display: flex;
+    align-items: center;
+    justify-content: center;
+    overflow: hidden;
+    animation: blobMorph 8s ease-in-out infinite alternate;
+    transition: background 0.4s ease, border-color 0.4s ease;
+}
+.hero-img-container img {
+    width: 85%;
+    height: 85%;
+    object-fit: contain;
+}
+
+@keyframes blobMorph {
+    0% { border-radius: 30% 70% 70% 30% / 30% 30% 70% 70%; }
+    100% { border-radius: 60% 40% 30% 70% / 60% 50% 50% 40%; }
+}
+
+/* --- TENTANG --- */
+#tentang { background: transparent !important; position: relative; }
+.about-grid { display: grid; grid-template-columns: 1fr 1fr; gap: 80px; align-items: center; max-width: 1200px; width: 100%; margin: 0 auto; position: relative; z-index: 2; }
+.about-img-wrap { position: relative; }
+.about-img-wrap::before { content: ''; position: absolute; inset: -8px; border-radius: 20px; border: 2px solid var(--blue); opacity: 0.4; transition: border-color 0.4s ease; }
+.about-img-wrap img { width: 100%; border-radius: 16px; display: block; object-fit: cover; aspect-ratio: 4/3; box-shadow: 0 20px 40px rgba(0,0,0,0.2); }
+.about-text h2 { font-size: 2.4rem; font-weight: 800; margin-bottom: 24px; line-height: 1.15; color: var(--text); transition: color 0.4s ease; }
+.about-text h2 span { color: var(--blue-light); transition: color 0.4s ease; }
+.about-text p { color: var(--text-muted); line-height: 1.8; margin-bottom: 16px; font-size: 0.97rem; text-align: justify; transition: color 0.4s ease;}
+
+/* --- FITUR --- */
+#fitur { background: transparent !important; align-items: center; position: relative; }
+.section-header { text-align: center; margin-bottom: 60px; width: 100%; position: relative; z-index: 2; }
+.section-header h2 { font-size: 2.2rem; font-weight: 800; margin-bottom: 12px; color: var(--text); transition: color 0.4s ease; }
+.section-header p { color: var(--text-muted); font-size: 0.95rem; transition: color 0.4s ease; }
+.features-grid { display: grid; grid-template-columns: repeat(3, 1fr); gap: 24px; max-width: 1100px; width: 100%; margin: 0 auto; position: relative; z-index: 2; }
+.feature-card { 
+    background: var(--dark-card); 
+    border: 1px solid var(--border); 
+    border-radius: 16px; 
+    padding: 40px 32px; 
+    /* Efek hover dikembalikan mengikuti properti lama (translateY(-15px)) namun tetap smooth dengan properti baru */
+    transition: transform 0.4s cubic-bezier(0.23, 1, 0.32, 1), box-shadow 0.4s ease, background 0.4s ease, border-color 0.4s ease;
+    cursor: default;
+    box-shadow: 0 10px 30px rgba(0,0,0,0.05);
+}
+.feature-card:hover { 
+    border-color: var(--blue); 
+    transform: translateY(-15px); 
+    box-shadow: 0 20px 40px rgba(59,130,246,0.15); 
+}
+.feature-icon { font-size: 2rem; margin-bottom: 24px; display: inline-block; transition: transform 0.3s ease; }
+.feature-card:hover .feature-icon { transform: scale(1.2) rotate(10deg); }
+.feature-card h3 { font-size: 1.05rem; font-weight: 700; margin-bottom: 12px; color: var(--text); transition: color 0.4s ease; }
+.feature-card p { color: var(--text-muted); font-size: 0.88rem; line-height: 1.7; text-align: left; transition: color 0.4s ease; }
+
+/* DAFTAR ISYARAT */
+#daftar-isyarat { background: transparent !important; align-items: center; }
+.isyarat-wrapper { width: 100%; max-width: 1100px; }
+.sign-section-label { font-size: 0.72rem; font-weight: 700; letter-spacing: 3px; color: var(--blue); margin-bottom: 20px; text-transform: uppercase; transition: color 0.4s ease; }
+.sign-grid { display: flex; flex-wrap: wrap; gap: 12px; margin-bottom: 48px; justify-content: flex-start; }
+.sign-badge { 
+    width: 68px; height: 68px; display: flex; align-items: center; justify-content: center; 
+    background: var(--dark-card2); border: 1px solid var(--border); border-radius: 14px; color: var(--text);
+    font-size: 1.1rem; font-weight: 700; cursor: pointer; transition: transform 0.3s cubic-bezier(0.34, 1.56, 0.64, 1), color 0.4s ease, background 0.4s ease, border-color 0.4s ease, box-shadow 0.3s ease; user-select: none; 
+    box-shadow: 0 4px 10px rgba(0,0,0,0.03);
+}
+.sign-badge:hover { 
+    border-color: var(--blue); background: var(--dark-card); 
+    transform: scale(1.2) translateY(-5px); /* Mengembalikan scale(1.2) dari kode lama */
+    box-shadow: 0 8px 20px rgba(59,130,246,0.25); 
+    color: var(--blue-light);
+}
+
+/* DETEKSI */
+#deteksi { background: transparent !important; text-align: center; align-items: center; min-height: auto; padding: 120px 60px; position: relative; }
+
+/* --- MODAL --- */
+.modal-overlay { 
+    position: fixed; inset: 0; background: rgba(6, 11, 25, 0.85); z-index: 2000; 
+    display: flex; visibility: hidden; opacity: 0; transition: all 0.4s ease; 
+    align-items: center; justify-content: center; backdrop-filter: blur(8px);
+    -webkit-backdrop-filter: blur(8px);
+}
+.modal-overlay.active { visibility: visible; opacity: 1; }
+
+.modal-box { 
+    background: var(--dark-card); border-radius: 24px; padding: 40px; 
+    text-align: center; max-width: 450px; width: 90%; position: relative;
+    transform: translateY(50px); opacity: 0; transition: transform 0.4s cubic-bezier(0.34, 1.56, 0.64, 1), opacity 0.4s ease, background 0.4s ease, border-color 0.4s ease; 
+    border: 1px solid var(--border); box-shadow: 0 25px 60px rgba(0, 0, 0, 0.4); 
+}
+/* Menonaktifkan efek transformasi hover khusus untuk modal agar tetap statis (dari kode lama) */
+.modal-box:hover { transform: none !important; border-color: var(--border) !important; }
+.modal-overlay.active .modal-box { transform: translateY(0); opacity: 1; }
+.modal-title { font-size: 1.5rem; font-weight: 800; margin-bottom: 20px; color: var(--text); transition: color 0.4s ease; }
+.modal-img-container {
+    width: 100%; background: var(--dark-card2); border-radius: 16px; 
+    margin-bottom: 24px; border: 1px solid var(--border); overflow: hidden;
+    aspect-ratio: 1/1; display: flex; align-items: center; justify-content: center;
+    transition: background 0.4s ease, border-color 0.4s ease;
+}
+.modal-img-container img { width: 100%; height: 100%; object-fit: contain; padding: 20px; filter: drop-shadow(0 0 10px rgba(59,130,246,0.3));}
+
+.btn-green { 
+    display: inline-flex; align-items: center; gap: 10px; background: #22c55e; color: #fff; 
+    padding: 14px 32px; border-radius: 50px; font-weight: 700; 
+    font-size: 0.95rem; text-decoration: none; border: none; cursor: pointer; 
+    transition: all 0.3s ease; margin-bottom: 20px; box-shadow: 0 4px 15px rgba(34,197,94,0.3); 
+}
+.btn-green:hover { background: #16a34a; transform: translateY(-3px) scale(1.05); box-shadow: 0 8px 25px rgba(34,197,94,0.4); }
+.modal-ref { font-size: 0.75rem; color: var(--text-muted); opacity: 0.7; transition: color 0.4s ease; }
+.modal-close { position: absolute; top: 20px; right: 20px; background: var(--dark-card2); border: 1px solid var(--border); color: var(--text-muted); width: 36px; height: 36px; border-radius: 50%; cursor: pointer; display: flex; align-items: center; justify-content: center; transition: all 0.2s ease, background 0.4s ease, border-color 0.4s ease; }
+.modal-close:hover { color: #ef4444; border-color: #ef4444; transform: rotate(90deg); }
+
+/* --- FOOTER --- */
+footer { background: var(--footer-bg) !important; padding: 70px 60px 40px; transition: background 0.4s ease; position: relative; z-index: 2; }
+.footer-grid { display: grid; grid-template-columns: 2fr 1fr 1fr 1.5fr; gap: 48px; max-width: 1200px; margin: 0 auto 48px; }
+.footer-brand .logo { font-size: 1.4rem; display: inline-block; margin-bottom: 16px; }
+.footer-brand p { color: var(--text-muted); font-size: 0.88rem; line-height: 1.7; margin-bottom: 20px; transition: color 0.4s ease; }
+.socials { display: flex; gap: 12px; }
+.social-btn { width: 38px; height: 38px; border-radius: 50%; display: flex; align-items: center; justify-content: center; font-size: 0.9rem; text-decoration: none; transition: all 0.3s ease; }
+.social-btn:hover { transform: translateY(-5px) scale(1.1); }
+.social-btn.github { color: var(--text); background: rgba(148,163,184,0.15); }
+.social-btn.linkedin { color: #0077b5; background: rgba(0,119,181,0.1); }
+.social-btn.instagram { color: #e1306c; background: rgba(225,48,108,0.1); }
+.footer-col h4 { font-size: 0.95rem; font-weight: 700; margin-bottom: 16px; color: var(--text); transition: color 0.4s ease; }
+.underline-blue { width: 28px; height: 2px; background: var(--blue); margin-bottom: 20px; }
+.footer-col ul { list-style: none; }
+.footer-col ul li { margin-bottom: 12px; }
+
+/* FIX: Teks dipaksa sebaris menggunakan white-space: nowrap */
+.footer-col ul li a { 
+    color: var(--text-muted); 
+    text-decoration: none; 
+    font-size: 0.88rem; 
+    transition: color 0.4s ease, transform 0.3s ease; 
+    display: flex; 
+    align-items: center; 
+    gap: 10px; 
+    white-space: nowrap; 
+}
+.footer-col ul li a:hover { color: var(--text); transform: translateX(8px); }
+.contact-info { font-size: 0.85rem; color: var(--text-muted); margin-bottom: 12px; display: flex; align-items: center; gap: 10px; transition: color 0.4s ease; white-space: nowrap; }
+.footer-bottom { border-top: 1px solid rgba(148,163,184,0.1); padding-top: 28px; text-align: center; color: var(--text-muted); font-size: 0.82rem; transition: color 0.4s ease; }
+
+#scrollTop { position: fixed; bottom: 32px; right: 32px; width: 48px; height: 48px; background: var(--blue); border-radius: 50%; display: flex; align-items: center; justify-content: center; color: #fff; font-size: 1.1rem; cursor: pointer; border: none; box-shadow: 0 8px 20px rgba(59,130,246,0.4); opacity: 0; transform: translateY(20px); transition: all 0.4s cubic-bezier(0.34, 1.56, 0.64, 1); z-index: 99; pointer-events: none; }
+#scrollTop.visible { opacity: 1; transform: translateY(0); pointer-events: auto; }
+#scrollTop:hover { background: #2563eb; transform: translateY(-8px) scale(1.1); }
+
+/* --- RESPONSIVE MEDIA QUERIES --- */
+@media (max-width: 900px) {
+    nav { padding: 16px 24px; }
+    nav.scrolled { padding: 12px 24px; }
+    section { padding: 100px 24px 60px; }
+    .about-grid { grid-template-columns: 1fr; gap: 40px; }
+    .features-grid { grid-template-columns: 1fr; }
+}
+
+@media (max-width: 768px) {
+    /* 1. SEGMEN HERO RESPONSIVE FIX */
+    #beranda { padding: 0 24px !important; display: block; min-height: auto; }
+    .hero-split-grid {
+        grid-template-columns: 1fr !important;
+        gap: 48px !important;
+        text-align: center !important;
+        margin-top: 100px !important;
+        margin-bottom: 40px;
+    }
+    .hero-content { display: flex; flex-direction: column; align-items: center; }
+    .hero-title { font-size: 2.2rem !important; line-height: 1.2 !important; }
+    .hero-desc { margin-left: auto !important; margin-right: auto !important; font-size: 0.98rem !important; text-align: center !important; }
+    
+    .hero-img-side {
+        order: 2; 
+        margin-top: 10px;
+    }
+    .hero-img-container {
+        max-width: 280px !important; 
+        box-shadow: 0 15px 35px rgba(59,130,246,0.15);
+    }
+
+    /* 2. DAFTAR ISYARAT */
+    .isyarat-wrapper .section-header { text-align: center !important; }
+    .sign-section-label { text-align: center !important; }
+    .sign-grid { justify-content: center !important; }
+
+    /* 3. FOOTER SMART GRID 2 KOLOM (DIPERBAIKI AGAR STRUKTUR TETAP SEJAJAR & SEBARIS) */
+    .footer-grid {
+        grid-template-columns: 1fr 1fr !important; /* Tetap mempertahankan layout 2 kolom sejajar */
+        gap: 40px 16px !important; /* Memperkecil gap horizontal agar muat teks sebaris */
+    }
+    .footer-brand { grid-column: 1 / span 2 !important; }
+    .footer-brand p { text-align: justify !important; }
+    .footer-col:nth-child(2) { grid-column: 1 !important; }
+    .footer-col:nth-child(3) { grid-column: 2 !important; }
+    .footer-col:nth-child(4) { grid-column: 1 / span 2 !important; }
+    
+    /* Penskalaan ukuran font khusus mobile agar teks satu baris tidak overflow melewati batas layar */
+    .footer-col ul li a {
+        font-size: 0.8rem !important;
+    }
+
+    /* --- SIDEBAR MOBILE OPTIMIZED SYSTEM --- */
+    nav { z-index: 1060 !important; position: fixed !important; transition: background 0.4s ease, border-color 0.4s ease; }
+    
+    nav:has(#navLinks.active) .logo { opacity: 0 !important; visibility: hidden !important; }
+    .logo { transition: opacity 0.2s ease, visibility 0.2s ease, color 0.4s ease !important; }
+    
+    .menu-toggle-btn { display: flex !important; }
+    .nav-right { width: auto !important; }
+    
+    .nav-links { 
+        position: fixed !important; top: 0; right: -100%; 
+        width: 210px; 
+        max-width: 65vw; 
+        height: 100vh; 
+        background: var(--nav-bg) !important; 
+        backdrop-filter: blur(16px) !important; 
+        -webkit-backdrop-filter: blur(16px) !important;
+        border-left: 1px solid var(--border); 
+        flex-direction: column !important; justify-content: flex-start !important; align-items: flex-start !important; 
+        padding: 100px 20px 40px !important; gap: 8px !important; 
+        box-shadow: -15px 0 40px rgba(0,0,0,0.15); 
+        z-index: 1040 !important; list-style: none !important; left: auto !important; transform: none !important; 
+        transition: right 0.3s cubic-bezier(0.4, 0, 0.2, 1), background 0.4s ease, border-color 0.4s ease !important; 
+    }
+    .nav-links.active { right: 0 !important; }
+    .nav-links li { width: 100% !important; display: block !important; }
+    .nav-links a { 
+        font-size: 0.95rem !important; font-weight: 600 !important; color: var(--text-muted); 
+        width: 100% !important; display: block !important; padding: 12px 16px !important; 
+        border-radius: 12px; transition: all 0.2s ease, color 0.4s ease !important; text-align: left !important; box-sizing: border-box !important; 
+    }
+    .nav-links a:hover { 
+        color: var(--blue) !important; 
+        background: var(--dark-card2) !important; 
+        transform: translateX(6px) !important; 
+    }
+    .nav-links a::after { display: none !important; } 
+}
+
+@media (max-width: 600px) {
+    #deteksi { padding: 80px 24px; }
+}

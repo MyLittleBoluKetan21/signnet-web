@@ -11,7 +11,12 @@ use Illuminate\Support\Facades\File;
 
 class SignController extends Controller
 {
-    private string $flaskUrl = 'http://127.0.0.1:5000';
+    private string $flaskUrl;
+
+    public function __construct()
+    {
+        $this->flaskUrl = env('PYTHON_API_URL', 'http://127.0.0.1:5000');
+    }
 
     // =========================================================================
     // BARU: Menerima file biner dan JSON kiriman dari Flask secara internal
@@ -153,6 +158,7 @@ class SignController extends Controller
             }
 
             $errorBody = $response->json();
+            Log::error('Flask Error Response: ' . $response->body());
             return response()->json([
                 'status'  => 'error',
                 'message' => $errorBody['message'] ?? 'Backend Python mengembalikan error.',

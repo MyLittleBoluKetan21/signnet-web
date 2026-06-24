@@ -282,6 +282,9 @@ function onResults(results) {
     }
 }
 
+// =========================================================================
+// BAGIAN OPTIMASI MEDIA PIPE & CAMERA (MEMAKSIMALKAN FRAME RATE)
+// =========================================================================
 const hands = new Hands({
     locateFile: (file) => {
         return `https://cdn.jsdelivr.net/npm/@mediapipe/hands/${file}`;
@@ -290,25 +293,61 @@ const hands = new Hands({
 
 hands.setOptions({
     maxNumHands: 2,
-    modelComplexity: 1,
-    minDetectionConfidence: 0.6,
-    minTrackingConfidence: 0.6
+    modelComplexity: 0, // Menggunakan model lite (0) agar load super cepat & fps tinggi
+    minDetectionConfidence: 0.5,
+    minTrackingConfidence: 0.5
 });
 
 hands.onResults(onResults);
 
-const camera = new Camera(videoElement, {
-    onFrame: async () => {
-        await hands.send({
-            image: videoElement
-        });
-    },
-    width: 640,
-    height: 480
-});
+// Flag pengunci frame stream
+let isProcessingFrame = false;
+
+async function predictLoop() {
+    if (videoElement.paused || videoElement.ended) {
+        requestAnimationFrame(predictLoop);
+        return;
+    }
+
+    // Hanya kirim frame ke MediaPipe jika frame sebelumnya sudah selesai diproses (mencegah patah-patah)
+    if (!isProcessingFrame && videoElement.readyState >= 3) { 
+        isProcessingFrame = true;
+        try {
+            await hands.send({ image: videoElement });
+        } catch (err) {
+            console.error("MediaPipe Stream Error:", err);
+        }
+        isProcessingFrame = false;
+    }
+    
+    requestAnimationFrame(predictLoop);
+}
 
 window.addEventListener('DOMContentLoaded', async () => {
+    // 1. Inisialisasi Model AI & Metadata JSON
     await initModelAndLabels();
-    camera.start();
+    
+    // 2. Akses Kamera menggunakan Native Navigator MediaDevices (Jauh lebih ringan)
+    try {
+        const stream = await navigator.mediaDevices.getUserMedia({
+            video: { 
+                width: 640, 
+                height: 480, 
+                frameRate: { ideal: 24, max: 30 } 
+            },
+            audio: false
+        });
+        videoElement.srcObject = stream;
+        videoElement.play();
+        
+        videoElement.onloadeddata = () => {
+            // Mulai loop deteksi tangan secara asinkronus setelah video siap
+            predictLoop();
+        };
+    } catch (err) {
+        console.error("Gagal memuat kamera device:", err);
+        statusText.innerHTML = '<i class="fas fa-exclamation-triangle" style="color: #ef4444;"></i> Akses Kamera Ditolak / Tidak Ditemukan';
+    }
+
     window.updateButtonVisuals(window.currentDetectionMode);
 });

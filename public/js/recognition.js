@@ -10,6 +10,9 @@ let isModeChangingNotification = false;
 
 window.currentDetectionMode = 'huruf'; 
 
+// =========================================================================
+// INISIALISASI MODEL AI (OPTIMASI PENUH RAM & RESOLUSI BAGI SAFARI IOS / IPHONE)
+// =========================================================================
 async function initModelAndLabels() {
     try {
         statusText.style.display = 'block';
@@ -20,9 +23,17 @@ async function initModelAndLabels() {
         const metaData = await metaResponse.json();
         classLabels = metaData.classification_report ? Object.keys(metaData.classification_report).filter(k => k !== 'accuracy' && k !== 'macro avg' && k !== 'weighted avg') : [];
         
-        // 2. Load engine ONNX runtime web session
-        onnxSession = await ort.InferenceSession.create('/models/rf_model.onnx');      
-        console.log("✅ ONNX Session & Class Labels Berhasil Dimuat!");
+        // SOLUSI UTAMA CRASH IPHONE: Batasi konsumsi memori ONNX Web Runtime agar tidak memicu iOS OOM
+        const options = {
+            executionProviders: ['webgl', 'wasm'], 
+            enableCpuMemArena: true,
+            enableMemPattern: true,
+            extra: { session: { set_denormal_as_zero: "1" } } 
+        };
+
+        // 2. Load engine ONNX runtime web session dengan konfigurasi hemat RAM
+        onnxSession = await ort.InferenceSession.create('/models/rf_model.onnx', options);      
+        console.log("✅ ONNX Session & Class Labels Berhasil Dimuat dengan Profil Hemat RAM!");
 
         statusText.innerHTML = '<i class="fas fa-check-circle" style="color: #10b981;"></i> AI Siap! Posisikan tangan Anda';
     } catch (error) {
@@ -152,7 +163,6 @@ async function runLocalPrediction(features) {
         
         if (labelTensor && labelTensor.data) {
             const predictedIndex = Number(labelTensor.data[0]);
-            // Menggunakan 'let' agar nilai stringLabel bisa dimanipulasi oleh logika pemetaan
             let stringLabel = classLabels[predictedIndex] || "-";
 
             // =========================================================================
@@ -164,9 +174,8 @@ async function runLocalPrediction(features) {
                 if (upperLabel === 'V') {
                     stringLabel = '2';
                 } 
-                // Mengatasi bottleneck angka 6 s/d 9 yang sering terbaca sebagai W atau F
                 else if (upperLabel === 'W') {
-                    stringLabel = '6'; // Mapping default atau disesuaikan dengan intensitas kemiripan tertinggi
+                    stringLabel = '6'; 
                 } 
                 else if (upperLabel === 'F') {
                     stringLabel = '9';
@@ -175,7 +184,6 @@ async function runLocalPrediction(features) {
                     stringLabel = '4';
                 }
             } else if (window.currentDetectionMode === 'huruf') {
-                // Kebalikannya jika berada di mode huruf namun model mendeteksi angka bawaannya
                 if (stringLabel === '2') stringLabel = 'V';
                 else if (stringLabel === '6' || stringLabel === '7' || stringLabel === '8') stringLabel = 'W';
                 else if (stringLabel === '9') stringLabel = 'F';
@@ -235,35 +243,41 @@ async function runLocalPrediction(features) {
 }
 
 function onResults(results) {
-    canvasElement.width = videoElement.videoWidth;
-    canvasElement.height = videoElement.videoHeight;
+    // OPTIMASI MEMORI: Hindari re-alokasi dimensi canvas tiap frame agar Safari tidak mengalami memory leak
+    if (canvasElement.width !== videoElement.videoWidth || canvasElement.height !== videoElement.videoHeight) {
+        canvasElement.width = videoElement.videoWidth;
+        canvasElement.height = videoElement.videoHeight;
+    }
+    
     canvasCtx.save();
     canvasCtx.clearRect(0, 0, canvasElement.width, canvasElement.height);
     
-    canvasCtx.save();
     canvasCtx.translate(canvasElement.width, 0);
     canvasCtx.scale(-1, 1);
     canvasCtx.drawImage(results.image, 0, 0, canvasElement.width, canvasElement.height);
 
+    // OPTIMASI PENGULANGAN: Gunakan native incremental 'for' loop untuk menghemat performa prosesor seluler lama
     if (results.multiHandLandmarks) {
-        results.multiHandLandmarks.forEach((landmarks, index) => {
-            const handedness = results.multiHandedness[index].label;
+        const totalHands = results.multiHandLandmarks.length;
+        for (let i = 0; i < totalHands; i++) {
+            const landmarks = results.multiHandLandmarks[i];
+            const handedness = results.multiHandedness[i].label;
             const handColor = handedness === 'Right' ? '#6366f1' : '#10b981';
 
             drawConnectors(canvasCtx, landmarks, HAND_CONNECTIONS, {
                 color: handColor,
-                lineWidth: 4
+                lineWidth: 3 // Dipertipis agar rendering GPU seluler lebih enteng
             });
             drawLandmarks(canvasCtx, landmarks, {
                 color: '#ffffff',
-                lineWidth: 1.5,
-                radius: 3
+                lineWidth: 1,
+                radius: 2 // Diperkecil untuk meminimalisir beban titik raster
             });
-        });
+        }
     }
+    
     canvasCtx.restore();
     drawGuide(canvasCtx, canvasElement.width, canvasElement.height);
-    canvasCtx.restore();
 
     if (results.multiHandLandmarks && results.multiHandLandmarks.length > 0) {
         const now = Date.now();
@@ -274,8 +288,6 @@ function onResults(results) {
         }
     } else {
         updateUI("-", 0);
-        
-        // Jeda waktu ketat mencegah teks pencarian menimpa notifikasi pergantian mode
         if (!isModeChangingNotification) {
             statusText.innerHTML = '<i class="fas fa-video" style="color: #9ca3af;"></i> Mencari Tangan di Area Kamera...';
         }
@@ -283,25 +295,24 @@ function onResults(results) {
 }
 
 // =========================================================================
-// BAGIAN OPTIMASI MEDIA PIPE & CAMERA (MEMAKSIMALKAN FRAME RATE)
+// REGISTRASI ENGINE MEDIAPIPE HANDS
 // =========================================================================
 const hands = new Hands({
-    locateFile: (file) => {
-        return `https://cdn.jsdelivr.net/npm/@mediapipe/hands/${file}`;
-    }
+    locateFile: (file) => `https://cdn.jsdelivr.net/npm/@mediapipe/hands/${file}`
 });
 
 hands.setOptions({
     maxNumHands: 2,
-    modelComplexity: 0, // Menggunakan model lite (0) agar load super cepat & fps tinggi
+    modelComplexity: 0, // Tetap gunakan tipe model Lite (0) demi FPS tinggi lintas device
     minDetectionConfidence: 0.5,
     minTrackingConfidence: 0.5
 });
 
 hands.onResults(onResults);
 
-// Flag pengunci frame stream
 let isProcessingFrame = false;
+let lastFrameTime = 0;
+const FPS_THROTTLE = 1000 / 20; // BATAS AMAN IPHONE: Maksimal 20 FPS ke MediaPipe agar RAM tidak menumpuk (OOM)
 
 async function predictLoop() {
     if (videoElement.paused || videoElement.ended) {
@@ -309,39 +320,52 @@ async function predictLoop() {
         return;
     }
 
-    // Hanya kirim frame ke MediaPipe jika frame sebelumnya sudah selesai diproses (mencegah patah-patah)
-    if (!isProcessingFrame && videoElement.readyState >= 3) { 
+    const now = Date.now();
+    
+    // PEMBATAS FRAME (THROTTLE): Memberikan jeda waktu bagi Garbage Collector WebKit Safari untuk membersihkan cache RAM
+    if (!isProcessingFrame && videoElement.readyState >= 3 && (now - lastFrameTime >= FPS_THROTTLE)) { 
         isProcessingFrame = true;
+        lastFrameTime = now;
+        
         try {
             await hands.send({ image: videoElement });
         } catch (err) {
             console.error("MediaPipe Stream Error:", err);
+        } finally {
+            isProcessingFrame = false; // Memastikan flag tidak mengunci mati jika terjadi anomali stream
         }
-        isProcessingFrame = false;
     }
     
     requestAnimationFrame(predictLoop);
 }
 
 window.addEventListener('DOMContentLoaded', async () => {
-    // 1. Inisialisasi Model AI & Metadata JSON
+    // 1. Jalankan inisialisasi model AI
     await initModelAndLabels();
     
-    // 2. Akses Kamera menggunakan Native Navigator MediaDevices (Jauh lebih ringan)
+    // 2. Membuka stream kamera native dengan konfigurasi parameter aman
     try {
-        const stream = await navigator.mediaDevices.getUserMedia({
+        const constraints = {
             video: { 
-                width: 640, 
-                height: 480, 
+                width: { ideal: 640 }, 
+                height: { ideal: 480 }, 
                 frameRate: { ideal: 24, max: 30 } 
             },
             audio: false
-        });
+        };
+        
+        const stream = await navigator.mediaDevices.getUserMedia(constraints);
         videoElement.srcObject = stream;
+        
+        // HACK ANTI-REFRESH LINTAS SAFARI IOS:
+        // Tanpa instruksi inline-play dan muting ini, sistem iOS akan menutup paksa canvas / mereload tab.
+        videoElement.setAttribute('playsinline', true);
+        videoElement.setAttribute('webkit-playsinline', true);
+        videoElement.muted = true; 
+        
         videoElement.play();
         
         videoElement.onloadeddata = () => {
-            // Mulai loop deteksi tangan secara asinkronus setelah video siap
             predictLoop();
         };
     } catch (err) {

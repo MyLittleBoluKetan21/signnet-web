@@ -7,6 +7,9 @@ use App\Http\Requests\Auth\LoginRequest;
 use Illuminate\Http\RedirectResponse;
 use Illuminate\Http\Request;
 use Illuminate\Support\Facades\Auth;
+use Illuminate\Support\Facades\DB; // Tambahkan ini
+use Illuminate\Support\Facades\Hash; // Tambahkan ini
+use Illuminate\Validation\ValidationException;
 use Illuminate\View\View;
 
 class AuthenticatedSessionController extends Controller
@@ -24,24 +27,51 @@ class AuthenticatedSessionController extends Controller
      */
     public function store(LoginRequest $request): RedirectResponse
     {
-        // $request->authenticate();
+        // 1. Validasi input username dan password terlebih dahulu
+        $request->validate([
+            'username' => 'required|string',
+            'password' => 'required|string',
+        ]);
 
-        // $request->session()->regenerate();
+        // 2. Cari data admin berdasarkan username di database
+        // (menyesuaikan AUTH_MODEL kamu di .env yaitu App\Models\Admin)
+        $admin = \App\Models\Admin::where('username', $request->username)->first();
 
-        // return redirect()->intended(route('admin.dashboard', absolute: false));
-        // return redirect()->route('admin.dashboard');
+        // 3. Cek apakah admin ada dan password-nya cocok
+        if ($admin && Hash::check($request->password, $admin->password)) {
+            
+            // 4. CEK SYSTEM 1 AKUN 1 DEVICE
+            // Kita cari apakah ada session aktif untuk admin_id / user_id ini yang belum expired
+            $isLoggedIn = DB::table('sessions')
+                ->where('user_id', $admin->id)
+                ->where('last_activity', '>=', now()->subMinutes(config('session.lifetime'))->getTimestamp())
+                ->exists();
 
-        try {
-            $request->authenticate();
-        } catch (\Illuminate\Validation\ValidationException $e) {
-            throw \Illuminate\Validation\ValidationException::withMessages([
-                'username' => 'Username atau password yang Anda masukkan salah.',
-            ]);
+            if ($isLoggedIn) {
+                // Jika terdeteksi sedang aktif di device lain, kunci akses masuknya!
+                throw ValidationException::withMessages([
+                    'username' => 'Akun admin ini sedang login di perangkat lain. Silahkan logout terlebih dahulu dari perangkat tersebut.',
+                ]);
+            }
+
+            // 5. Jika aman, jalankan otentikasi login default bawaan laravel
+            try {
+                $request->authenticate();
+            } catch (\Illuminate\Validation\ValidationException $e) {
+                throw ValidationException::withMessages([
+                    'username' => 'Username atau password yang Anda masukkan salah.',
+                ]);
+            }
+
+            $request->session()->regenerate();
+
+            return redirect()->route('admin.dashboard')->with('success', 'Selamat datang kembali, Administrator!');
         }
 
-        $request->session()->regenerate();
-
-        return redirect()->route('admin.dashboard')->with('success', 'Selamat datang kembali, Administrator!');
+        // Gagal login standar jika username/password salah sejak awal
+        throw ValidationException::withMessages([
+            'username' => 'Username atau password yang Anda masukkan salah.',
+        ]);
     }
 
     /**

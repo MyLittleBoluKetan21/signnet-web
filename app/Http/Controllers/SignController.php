@@ -30,18 +30,17 @@ class SignController extends Controller
                 'labels'     => 'required|file',
             ]);
 
-            $destinationPath = public_path('models');
+            // PERBAIKAN: Ubah public_path menjadi storage_path
+            $destinationPath = storage_path('app/models');
 
-            // Buat folder public/models jika belum ada
             if (!File::exists($destinationPath)) {
                 File::makeDirectory($destinationPath, 0755, true);
             }
 
-            // Simpan / Overwriting file ke folder yang benar
+            // Menimpa file lama di folder storage
             $request->file('onnx_model')->move($destinationPath, 'rf_model.onnx');
-            $request->file('labels')->move($destinationPath, 'labels.json'); // <-- DIURUS MASUK KE PUBLIC/MODELS
+            $request->file('labels')->move($destinationPath, 'labels.json'); 
 
-            // Jika meta_model ingin ditaruh di storage agar aman seperti ModelSyncController:
             $storageMetadataDirectory = storage_path('app/ai_metadata');
             if (!File::exists($storageMetadataDirectory)) {
                 File::makeDirectory($storageMetadataDirectory, 0755, true);
@@ -50,7 +49,7 @@ class SignController extends Controller
 
             return response()->json([
                 'status' => 'success',
-                'message' => 'Aset web frontend dan backend berhasil diperbarui otomatis oleh Flask server!'
+                'message' => 'Aset web frontend dan backend berhasil diperbarui otomatis di folder storage oleh Flask!'
             ], 200);
 
         } catch (\Exception $e) {

@@ -17,11 +17,12 @@ class ModelSyncController extends Controller
             ], 400);
         }
 
-        $publicModelsDirectory = public_path('models');         
+        // PERBAIKAN: Ubah folder tujuan .onnx & labels.json ke folder storage aman
+        $secureModelsDirectory = storage_path('app/models');         
         $storageMetadataDirectory = storage_path('app/ai_metadata'); 
 
-        if (!File::exists($publicModelsDirectory)) {
-            File::makeDirectory($publicModelsDirectory, 0755, true);
+        if (!File::exists($secureModelsDirectory)) {
+            File::makeDirectory($secureModelsDirectory, 0755, true);
         }
 
         if (!File::exists($storageMetadataDirectory)) {
@@ -33,14 +34,15 @@ class ModelSyncController extends Controller
             $metaFile = $request->file('meta_model');
             $labelsFile = $request->file('labels');
 
-            $onnxFile->move($publicModelsDirectory, 'rf_model.onnx');
-            $labelsFile->move($publicModelsDirectory, 'labels.json'); // <-- Sudah benar masuk folder public/models/
+            // Pindahkan file langsung ke folder storage terproteksi
+            $onnxFile->move($secureModelsDirectory, 'rf_model.onnx');
+            $labelsFile->move($secureModelsDirectory, 'labels.json'); 
 
             $metaFile->move($storageMetadataDirectory, 'meta_model.json');
 
             return response()->json([
                 'status' => 'success',
-                'message' => '🚀 [BACKEND] Berhasil menerima seluruh asset model terbaru. rf_model.onnx & labels.json disinkronkan ke public, meta_model.json disimpan di storage aman!'
+                'message' => '🚀 [BACKEND] Berhasil menerima seluruh asset model terbaru di folder storage aman!'
             ], 200);
 
         } catch (\Exception $e) {

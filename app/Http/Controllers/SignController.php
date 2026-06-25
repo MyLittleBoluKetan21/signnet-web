@@ -19,7 +19,7 @@ class SignController extends Controller
     }
 
     // =========================================================================
-    // BARU: Menerima file biner dan JSON kiriman dari Flask secara internal
+    // PERBAIKAN: Memastikan pemindahan file labels.json masuk ke folder public/models/
     // =========================================================================
     public function updateModelFiles(Request $request)
     {
@@ -27,6 +27,7 @@ class SignController extends Controller
             $request->validate([
                 'onnx_model' => 'required|file',
                 'meta_model' => 'required|file',
+                'labels'     => 'required|file',
             ]);
 
             $destinationPath = public_path('models');
@@ -36,13 +37,20 @@ class SignController extends Controller
                 File::makeDirectory($destinationPath, 0755, true);
             }
 
-            // Simpan/Overwriting file lama
+            // Simpan / Overwriting file ke folder yang benar
             $request->file('onnx_model')->move($destinationPath, 'rf_model.onnx');
-            $request->file('meta_model')->move($destinationPath, 'meta_model.json');
+            $request->file('labels')->move($destinationPath, 'labels.json'); // <-- DIURUS MASUK KE PUBLIC/MODELS
+
+            // Jika meta_model ingin ditaruh di storage agar aman seperti ModelSyncController:
+            $storageMetadataDirectory = storage_path('app/ai_metadata');
+            if (!File::exists($storageMetadataDirectory)) {
+                File::makeDirectory($storageMetadataDirectory, 0755, true);
+            }
+            $request->file('meta_model')->move($storageMetadataDirectory, 'meta_model.json');
 
             return response()->json([
                 'status' => 'success',
-                'message' => 'Aset web frontend berhasil diperbarui otomatis oleh Flask server!'
+                'message' => 'Aset web frontend dan backend berhasil diperbarui otomatis oleh Flask server!'
             ], 200);
 
         } catch (\Exception $e) {
@@ -100,7 +108,7 @@ class SignController extends Controller
 
             $featuresData = $request->input('features');
 
-            Datasets::create([
+            $datasets = Datasets::create([
                 'admin_id' => $adminId,
                 'features' => $featuresData, 
                 'label'    => strtoupper(trim($request->input('label'))),

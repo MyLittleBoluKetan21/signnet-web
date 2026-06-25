@@ -32,9 +32,9 @@
                                     <i class="fa-solid fa-file-import mr-2 text-[10px]"></i>IMPORT DATASET
                                 </button>
 
-                                <button type="button" id="download-btn" onclick="executeDownload('json')" 
+                                <button type="button" id="download-btn" onclick="openDownloadModal()" 
                                     class="hidden sm:flex items-center justify-center px-5 py-2.5 bg-indigo-600 hover:bg-indigo-500 rounded-xl font-bold text-[11px] tracking-widest text-white active:scale-95 shadow-md transition-colors cursor-pointer">
-                                    <i class="fa-solid fa-file-code mr-2 text-[10px]"></i>DOWNLOAD DATASET (JSON)
+                                    <i class="fa-solid fa-file-code mr-2 text-[10px]"></i>DOWNLOAD DATASET
                                 </button>
 
                                 <button id="mobileSidebarToggle" type="button" class="md:hidden flex items-center justify-center w-11 h-11 bg-slate-100 dark:bg-slate-900/80 text-slate-800 dark:text-white rounded-2xl border border-slate-200 dark:border-white/10 active:scale-95 transition-colors cursor-pointer">
@@ -49,9 +49,9 @@
                                 <i class="fa-solid fa-file-import mr-2 text-[10px]"></i>IMPORT DATASET
                             </button>
 
-                            <button type="button" onclick="executeDownload('json')" 
+                            <button type="button" onclick="openDownloadModal()" 
                                 class="flex items-center justify-center w-full px-5 py-3 bg-indigo-600 hover:bg-indigo-500 rounded-xl font-bold text-[11px] tracking-widest text-white active:scale-95 shadow-md transition-colors cursor-pointer">
-                                <i class="fa-solid fa-file-code mr-2 text-[10px]"></i>DOWNLOAD DATASET (JSON)
+                                <i class="fa-solid fa-file-code mr-2 text-[10px]"></i>DOWNLOAD DATASET
                             </button>
                         </div>
 
@@ -160,17 +160,14 @@
     </div>
 
     <div id="importModal" class="fixed inset-0 z-[1000] hidden items-center justify-center p-4 antialiased animate__animated">
-    
         <div class="absolute inset-0 bg-slate-950/40 dark:bg-slate-950/60 backdrop-blur-sm" onclick="closeImportModal()"></div>
-        
         <div id="importModalCard" class="relative w-full max-w-md glass bg-white/90 dark:bg-slate-900/90 border border-slate-200 dark:border-white/10 rounded-[2rem] p-6 shadow-2xl overflow-hidden flex flex-col animate__animated">
-            
             <div class="flex items-center justify-between pb-4 border-b border-slate-200 dark:border-white/5">
                 <div class="flex items-center gap-2.5">
                     <div class="p-2 rounded-xl bg-emerald-500/10 text-emerald-600 dark:text-emerald-400 flex items-center justify-center">
                         <i class="fa-solid fa-file-import text-sm"></i>
                     </div>
-                    <h3 class="text-xs font-black tracking-widest uppercase text-slate-800 dark:text-white">Pilih Format Dataset</h3>
+                    <h3 class="text-xs font-black tracking-widest uppercase text-slate-800 dark:text-white">Pilih Format Import</h3>
                 </div>
                 <button onclick="closeImportModal()" class="text-slate-400 hover:text-slate-600 dark:hover:text-white transition-colors cursor-pointer w-8 h-8 flex items-center justify-center rounded-xl hover:bg-slate-100 dark:hover:bg-white/5">
                     <i class="fa-solid fa-xmark text-base"></i>
@@ -210,21 +207,67 @@
         </div>
     </div>
 
+    <div id="downloadModal" class="fixed inset-0 z-[1000] hidden items-center justify-center p-4 antialiased animate__animated">
+        <div class="absolute inset-0 bg-slate-950/40 dark:bg-slate-950/60 backdrop-blur-sm" onclick="closeDownloadModal()"></div>
+        <div id="downloadModalCard" class="relative w-full max-w-md glass bg-white/90 dark:bg-slate-900/90 border border-slate-200 dark:border-white/10 rounded-[2rem] p-6 shadow-2xl overflow-hidden flex flex-col animate__animated">
+            <div class="flex items-center justify-between pb-4 border-b border-slate-200 dark:border-white/5">
+                <div class="flex items-center gap-2.5">
+                    <div class="p-2 rounded-xl bg-indigo-500/10 text-indigo-600 dark:text-indigo-400 flex items-center justify-center">
+                        <i class="fa-solid fa-file-arrow-down text-sm"></i>
+                    </div>
+                    <h3 class="text-xs font-black tracking-widest uppercase text-slate-800 dark:text-white">Pilih Format Download</h3>
+                </div>
+                <button onclick="closeDownloadModal()" class="text-slate-400 hover:text-slate-600 dark:hover:text-white transition-colors cursor-pointer w-8 h-8 flex items-center justify-center rounded-xl hover:bg-slate-100 dark:hover:bg-white/5">
+                    <i class="fa-solid fa-xmark text-base"></i>
+                </button>
+            </div>
+
+            <p class="text-slate-500 dark:text-slate-400 text-xs font-medium my-4 leading-relaxed">
+                Silakan pilih format berkas unduhan untuk mencadangkan data tabel <code class="text-indigo-600 dark:text-indigo-400 font-bold font-mono text-[11px] bg-slate-100 dark:bg-white/5 px-1.5 py-0.5 rounded">datasets</code> Anda.
+            </p>
+
+            <div class="space-y-3">
+                <button type="button" onclick="selectDownloadFormat('json')" 
+                    class="w-full relative group flex items-start gap-4 p-4 rounded-2xl border-2 border-indigo-500/40 bg-indigo-500/[0.02] dark:bg-indigo-500/[0.01] hover:bg-indigo-500/10 transition-all text-left active:scale-[0.99] cursor-pointer">
+                    <div class="p-3 rounded-xl bg-indigo-600 text-white shadow-md mt-0.5 shrink-0 flex items-center justify-center w-11 h-11">
+                        <i class="fa-solid fa-file-code text-base"></i>
+                    </div>
+                    <div class="space-y-1">
+                        <div class="flex flex-wrap items-center gap-2">
+                            <span class="font-extrabold text-xs tracking-wide text-slate-800 dark:text-white uppercase">JSON Object (.json)</span>
+                            <span class="px-2 py-0.5 text-[8px] font-black tracking-widest uppercase bg-indigo-600 text-white rounded-md shadow-sm">POPULER</span>
+                        </div>
+                        <span class="text-[11px] text-slate-400 dark:text-slate-500 font-medium leading-relaxed block">Sangat cocok untuk kebutuhan integrasi API, pengolahan python, atau aplikasi frontend.</span>
+                    </div>
+                </button>
+
+                <button type="button" onclick="selectDownloadFormat('sql')" 
+                    class="w-full group flex items-start gap-4 p-4 rounded-2xl border border-slate-200 dark:border-white/5 bg-slate-50/50 dark:bg-white/[0.02] hover:border-emerald-500/30 hover:bg-emerald-500/[0.02] transition-all text-left active:scale-[0.99] cursor-pointer">
+                    <div class="p-3 rounded-xl bg-emerald-600 text-white shadow-md mt-0.5 shrink-0 group-hover:bg-emerald-500 transition-colors flex items-center justify-center w-11 h-11">
+                        <i class="fa-solid fa-database text-base"></i>
+                    </div>
+                    <div class="space-y-1">
+                        <span class="font-extrabold text-xs tracking-wide text-slate-800 dark:text-white uppercase block">SQL Script (.sql)</span>
+                        <span class="text-[11px] text-slate-400 dark:text-slate-500 font-medium leading-relaxed block">Berisi baris dump `INSERT INTO`. Memudahkan restorasi langsung ke database engine lain.</span>
+                    </div>
+                </button>
+            </div>
+        </div>
+    </div>
+
     <x-dataset.scripts />
 
     <script>
+        /* ==================== LOGIC MODAL IMPORT ==================== */
         function openImportModal() {
             const importModal = document.getElementById('importModal');
             const importModalCard = document.getElementById('importModalCard');
-
             if (!importModal || !importModalCard) return;
 
             importModal.style.setProperty('--animate-duration', '0.35s');
             importModalCard.style.setProperty('--animate-duration', '0.35s');
-
             importModal.classList.remove('hidden', 'animate__fadeOut');
             importModalCard.classList.remove('animate__zoomOut');
-
             importModal.classList.add('flex', 'animate__fadeIn');
             importModalCard.classList.add('animate__zoomIn');
         }
@@ -232,15 +275,12 @@
         function closeImportModal() {
             const importModal = document.getElementById('importModal');
             const importModalCard = document.getElementById('importModalCard');
-
             if (!importModal || !importModalCard) return;
 
             importModal.style.setProperty('--animate-duration', '0.35s');
             importModalCard.style.setProperty('--animate-duration', '0.35s');
-
             importModal.classList.remove('animate__fadeIn');
             importModal.classList.add('animate__fadeOut');
-
             importModalCard.classList.remove('animate__zoomIn');
             importModalCard.classList.add('animate__zoomOut');
 
@@ -249,7 +289,6 @@
                 importModal.classList.add('hidden');
                 importModal.removeEventListener('animationend', animationHandler);
             };
-
             importModal.addEventListener('animationend', animationHandler);
         }
 
@@ -262,15 +301,47 @@
             }
         }
 
-        /**
-         * Mengarahkan langsung ke method download di DatasetController.php
-         * Mendukung query string `?format=json` atau `?format=sql`
-         */
-        function executeDownload(format) {
-            // URL disesuaikan dengan pattern route internal aplikasi Laravel Anda
+        /* ==================== LOGIC MODAL DOWNLOAD ==================== */
+        function openDownloadModal() {
+            const downloadModal = document.getElementById('downloadModal');
+            const downloadModalCard = document.getElementById('downloadModalCard');
+            if (!downloadModal || !downloadModalCard) return;
+
+            downloadModal.style.setProperty('--animate-duration', '0.35s');
+            downloadModalCard.style.setProperty('--animate-duration', '0.35s');
+            downloadModal.classList.remove('hidden', 'animate__fadeOut');
+            downloadModalCard.classList.remove('animate__zoomOut');
+            downloadModal.classList.add('flex', 'animate__fadeIn');
+            downloadModalCard.classList.add('animate__zoomIn');
+        }
+
+        function closeDownloadModal() {
+            const downloadModal = document.getElementById('downloadModal');
+            const downloadModalCard = document.getElementById('downloadModalCard');
+            if (!downloadModal || !downloadModalCard) return;
+
+            downloadModal.style.setProperty('--animate-duration', '0.35s');
+            downloadModalCard.style.setProperty('--animate-duration', '0.35s');
+            downloadModal.classList.remove('animate__fadeIn');
+            downloadModal.classList.add('animate__fadeOut');
+            downloadModalCard.classList.remove('animate__zoomIn');
+            downloadModalCard.classList.add('animate__zoomOut');
+
+            const animationHandler = () => {
+                downloadModal.classList.remove('flex', 'animate__fadeOut');
+                downloadModal.classList.add('hidden');
+                downloadModal.removeEventListener('animationend', animationHandler);
+            };
+            downloadModal.addEventListener('animationend', animationHandler);
+        }
+
+        function selectDownloadFormat(format) {
+            closeDownloadModal();
+            // Menuju endpoint controller berdasarkan format yang dipilih pengguna
             window.location.href = `/dataset/download?format=${format}`;
         }
 
+        /* ==================== PROCESS FILE IMPORT ==================== */
         function handleFileImport(event, format) {
             const file = event.target.files[0];
             if (!file) return;
@@ -296,18 +367,13 @@
                 reader.readAsText(file);
             }
 
-            // Reset value agar file yang sama bisa di-upload ulang jika diperlukan
             event.target.value = '';
         }
 
-        /**
-         * Pengiriman berkas tunggal (JSON string / SQL plain text) 
-         * Mengarah ke endpoint pemrosesan utama backend
-         */
         function sendImportPayload(formatType, contentData) {
             const csrfTokenElement = document.querySelector('meta[name="csrf-token"]');
             if (!csrfTokenElement) {
-                alert('CSRF Token tidak ditemukan! Pastikan tag <meta name="csrf-token"> berada di dalam head HTML.');
+                alert('CSRF Token tidak ditemukan!');
                 return;
             }
 
@@ -325,7 +391,6 @@
             })
             .then(response => response.json())
             .then(data => {
-                // Mendukung response format lama (data.success) maupun standard terstruktur (data.status)
                 if (data.success || data.status === 'success') {
                     alert(data.message || 'Dataset berhasil diproses ke database!');
                     if (typeof loadDatasetStats === 'function') loadDatasetStats();

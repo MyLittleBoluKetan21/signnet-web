@@ -18,10 +18,15 @@ async function initModelAndLabels() {
         statusText.style.display = 'block';
         statusText.innerHTML = '<i class="fas fa-spinner fa-spin"></i> Memuat Model AI ke Browser...';
         
-        // 1. Fetch metadata label encoder hasil training python
-        const metaResponse = await fetch('/models/meta_model.json');
-        const metaData = await metaResponse.json();
-        classLabels = metaData.classification_report ? Object.keys(metaData.classification_report).filter(k => k !== 'accuracy' && k !== 'macro avg' && k !== 'weighted avg') : [];
+        // =========================================================================
+        // OPTIMASI INSTAN: Hardcode classLabels agar tidak perlu download JSON 11 ribu data
+        // =========================================================================
+        classLabels = [
+            '0', '1', '2', '3', '4', '5', '6', '7', '8', '9',
+            'A', 'B', 'C', 'D', 'E', 'F', 'G', 'H', 'I', 'J', 
+            'K', 'L', 'M', 'N', 'O', 'P', 'Q', 'R', 'S', 'T', 
+            'U', 'V', 'W', 'X', 'Y', 'Z'
+        ];
         
         // SOLUSI UTAMA CRASH IPHONE: Batasi konsumsi memori ONNX Web Runtime agar tidak memicu iOS OOM
         const options = {

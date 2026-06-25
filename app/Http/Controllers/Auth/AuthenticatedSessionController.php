@@ -79,7 +79,9 @@ class AuthenticatedSessionController extends Controller
      */
     public function destroy(Request $request): RedirectResponse
     {
+        // PERBAIKAN: Logout kedua guard untuk memastikan sesi bersih total
         Auth::guard('admin')->logout();
+        Auth::guard('web')->logout();
 
         $request->session()->invalidate();
 

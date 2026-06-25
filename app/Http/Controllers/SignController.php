@@ -16,7 +16,7 @@ class SignController extends Controller
     public function __construct()
     {
         // 1. DIUBAH: Mengarah langsung ke URL publik terowongan Localtunnel Google Colab kamu
-        $this->flaskUrl = 'https://loud-dogs-eat.loca.lt';
+        $this->flaskUrl = 'https://silver-bananas-float.loca.lt';
     }
 
     // =========================================================================

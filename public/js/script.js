@@ -92,7 +92,7 @@ function openModal(sign) {
     
     // Path gambar disesuaikan mengambil dari data attribute / base path yang dilempar dari HTML jika perlu, 
     // atau jika menggunakan folder public/assets/img/signs/ langsung panggil stringnya:
-    modalImg.src = `/assets/img/signs/${sign}.png`;
+    modalImg.src = `/assets/img/signs/${sign}.PNG`;
 
     modalImg.onerror = function() {
         this.src = "https://via.placeholder.com/300?text=Gambar+Isyarat+" + sign;

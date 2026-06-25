@@ -7,8 +7,8 @@ use App\Http\Requests\Auth\LoginRequest;
 use Illuminate\Http\RedirectResponse;
 use Illuminate\Http\Request;
 use Illuminate\Support\Facades\Auth;
-use Illuminate\Support\Facades\DB; // Tambahkan ini
-use Illuminate\Support\Facades\Hash; // Tambahkan ini
+use Illuminate\Support\Facades\DB;
+use Illuminate\Support\Facades\Hash;
 use Illuminate\Validation\ValidationException;
 use Illuminate\View\View;
 
@@ -34,16 +34,15 @@ class AuthenticatedSessionController extends Controller
         ]);
 
         // 2. Cari data admin berdasarkan username di database
-        // (menyesuaikan AUTH_MODEL kamu di .env yaitu App\Models\Admin)
         $admin = \App\Models\Admin::where('username', $request->username)->first();
 
         // 3. Cek apakah admin ada dan password-nya cocok
         if ($admin && Hash::check($request->password, $admin->password)) {
             
             // 4. CEK SYSTEM 1 AKUN 1 DEVICE
-            // Kita cari apakah ada session aktif untuk admin_id / user_id ini yang belum expired
+            // PERBAIKAN: Menggunakan $admin->id_admin agar sesuai dengan database
             $isLoggedIn = DB::table('sessions')
-                ->where('user_id', $admin->id)
+                ->where('user_id', $admin->id_admin)
                 ->where('last_activity', '>=', now()->subMinutes(config('session.lifetime'))->getTimestamp())
                 ->exists();
 
@@ -79,12 +78,10 @@ class AuthenticatedSessionController extends Controller
      */
     public function destroy(Request $request): RedirectResponse
     {
-        // PERBAIKAN: Logout kedua guard untuk memastikan sesi bersih total
         Auth::guard('admin')->logout();
         Auth::guard('web')->logout();
 
         $request->session()->invalidate();
-
         $request->session()->regenerateToken();
 
         return redirect('/');

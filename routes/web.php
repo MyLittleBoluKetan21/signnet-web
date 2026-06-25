@@ -65,7 +65,14 @@ Route::post('/api/sync-model', [ModelSyncController::class, 'receiveModel']);
 // 1. Rute Khusus Pengambilan Model .onnx
 Route::get('/models/rf_model.onnx', function () {
     $path = storage_path('app/models/rf_model.onnx'); 
-    if (!File::exists($path)) abort(404);
+    
+    // PERBAIKAN: Jika file belum ada, kembalikan JSON error 404, jangan biarkan melempar HTML
+    if (!File::exists($path)) {
+        return response()->json([
+            'status' => 'error',
+            'message' => 'Model file not found. Please train the model first.'
+        ], 404);
+    }
 
     ob_start('ob_gzhandler'); 
     $response = response()->file($path, [
@@ -80,7 +87,14 @@ Route::get('/models/rf_model.onnx', function () {
 // 2. Rute Khusus Pengambilan Label Kelas .json
 Route::get('/models/labels.json', function () {
     $path = storage_path('app/models/labels.json'); 
-    if (!File::exists($path)) abort(404);
+    
+    // PERBAIKAN: Jika file belum ada, kembalikan JSON error 404, jangan biarkan melempar HTML
+    if (!File::exists($path)) {
+        return response()->json([
+            'status' => 'error',
+            'message' => 'Labels file not found. Please train the model first.'
+        ], 404);
+    }
 
     ob_start('ob_gzhandler'); 
     $response = response()->file($path, [

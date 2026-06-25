@@ -18,13 +18,11 @@ async function initModelAndLabels() {
         statusText.style.display = 'block';
         statusText.innerHTML = '<i class="fas fa-spinner fa-spin"></i> Memuat Model AI ke Browser...';
         
-        // Pengecekan dengan validasi status HTTP
+        // PERBAIKAN UTAMA: Fetch file labels.json super ringan hasil split backend
         const labelsResponse = await fetch('/models/labels.json');
-        if (!labelsResponse.ok) {
-            throw new Error(`Gagal mengambil file label kelas (Status: ${labelsResponse.status})`);
-        }
         classLabels = await labelsResponse.json();
         
+        // SOLUSI UTAMA CRASH IPHONE: Batasi konsumsi memori ONNX Web Runtime agar tidak memicu iOS OOM
         const options = {
             executionProviders: ['webgl', 'wasm'], 
             enableCpuMemArena: true,
@@ -32,7 +30,7 @@ async function initModelAndLabels() {
             extra: { session: { set_denormal_as_zero: "1" } } 
         };
 
-        // Load engine ONNX
+        // 2. Load engine ONNX runtime web session dengan konfigurasi hemat RAM
         onnxSession = await ort.InferenceSession.create('/models/rf_model.onnx', options);      
         console.log("✅ ONNX Session & Class Labels Berhasil Dimuat dengan Profil Hemat RAM!");
 

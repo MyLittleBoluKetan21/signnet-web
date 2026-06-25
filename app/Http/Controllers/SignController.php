@@ -19,47 +19,49 @@ class SignController extends Controller
     }
 
     // =========================================================================
-    // PERBAIKAN: Memastikan pemindahan file labels.json masuk ke folder public/models/
+    // BARU: Menerima file biner dan JSON kiriman dari Flask secara internal
     // =========================================================================
     public function updateModelFiles(Request $request)
-    {
-        try {
-            $request->validate([
-                'onnx_model' => 'required|file',
-                'meta_model' => 'required|file',
-                'labels'     => 'required|file',
-            ]);
+{
+    try {
+        // Tambahkan validasi untuk file labels
+        $request->validate([
+            'onnx_model' => 'required|file',
+            'meta_model' => 'required|file',
+            'labels'     => 'required|file', // Tambahkan ini
+        ]);
 
-            // PERBAIKAN: Ubah public_path menjadi storage_path
-            $destinationPath = storage_path('app/models');
+        $destinationPath = public_path('models');
 
-            if (!File::exists($destinationPath)) {
-                File::makeDirectory($destinationPath, 0755, true);
-            }
-
-            // Menimpa file lama di folder storage
-            $request->file('onnx_model')->move($destinationPath, 'rf_model.onnx');
-            $request->file('labels')->move($destinationPath, 'labels.json'); 
-
-            $storageMetadataDirectory = storage_path('app/ai_metadata');
-            if (!File::exists($storageMetadataDirectory)) {
-                File::makeDirectory($storageMetadataDirectory, 0755, true);
-            }
-            $request->file('meta_model')->move($storageMetadataDirectory, 'meta_model.json');
-
-            return response()->json([
-                'status' => 'success',
-                'message' => 'Aset web frontend dan backend berhasil diperbarui otomatis di folder storage oleh Flask!'
-            ], 200);
-
-        } catch (\Exception $e) {
-            Log::error('updateModelFiles error: ' . $e->getMessage());
-            return response()->json([
-                'status' => 'error',
-                'message' => 'Gagal memperbarui berkas model di Laravel: ' . $e->getMessage()
-            ], 500);
+        // Buat folder public/models jika belum ada
+        if (!File::exists($destinationPath)) {
+            File::makeDirectory($destinationPath, 0755, true);
         }
+
+        // Simpan / Overwriting file lama
+        $request->file('onnx_model')->move($destinationPath, 'rf_model.onnx');
+        $request->file('labels')->move($destinationPath, 'labels.json'); // Tambahkan ini
+
+        // Jika meta_model ingin ditaruh di storage agar aman seperti ModelSyncController:
+        $storageMetadataDirectory = storage_path('app/ai_metadata');
+        if (!File::exists($storageMetadataDirectory)) {
+            File::makeDirectory($storageMetadataDirectory, 0755, true);
+        }
+        $request->file('meta_model')->move($storageMetadataDirectory, 'meta_model.json');
+
+        return response()->json([
+            'status' => 'success',
+            'message' => 'Aset web frontend dan backend berhasil diperbarui otomatis oleh Flask server!'
+        ], 200);
+
+    } catch (\Exception $e) {
+        Log::error('updateModelFiles error: ' . $e->getMessage());
+        return response()->json([
+            'status' => 'error',
+            'message' => 'Gagal memperbarui berkas model di Laravel: ' . $e->getMessage()
+        ], 500);
     }
+}
 
     // =========================================================================
     // JANGAN DIUBAH: Khusus melayani loadInitialData() di trainmodel.blade.php
@@ -107,7 +109,7 @@ class SignController extends Controller
 
             $featuresData = $request->input('features');
 
-            $datasets = Datasets::create([
+            Datasets::create([
                 'admin_id' => $adminId,
                 'features' => $featuresData, 
                 'label'    => strtoupper(trim($request->input('label'))),

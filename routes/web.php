@@ -6,8 +6,6 @@ use App\Http\Controllers\SignController;
 use App\Http\Controllers\PredictController;
 use App\Http\Controllers\DatasetController;
 use App\Http\Controllers\ManageAdminController;
-use App\Http\Controllers\Api\ModelSyncController;
-use Illuminate\Support\Facades\File;
 
 Route::get('/', function () {
     return view('welcome');
@@ -35,7 +33,6 @@ Route::middleware('auth:admin')->group(function () {
 
     Route::get('/api/model-metrics', [SignController::class, 'getModelMetrics'])->name('sign.metrics');
     Route::get('/api/dashboard-stats', [SignController::class, 'getDashboardStats'])->name('admin.dashboard.stats');
-    Route::post('/admin/update-model-files', [SignController::class, 'updateModelFiles'])->name('admin.update.files');
 
     Route::prefix('admin/dataset')->name('admin.dataset.')->group(function () {
         Route::get('/', [DatasetController::class, 'index'])->name('index');
@@ -53,57 +50,6 @@ Route::middleware('auth:admin')->group(function () {
         Route::post('/update/{id}', [ManageAdminController::class, 'update'])->name('update');
         Route::delete('/delete/{id}', [ManageAdminController::class, 'destroy'])->name('delete');
     });
-});
-
-Route::post('/api/sync-model', [ModelSyncController::class, 'receiveModel']);
-
-
-// =========================================================================
-// OPTIMASI JALUR BELAKANG: TRANSFER ASSET ML VIA STORAGE + GZIP
-// =========================================================================
-
-// 1. Rute Khusus Pengambilan Model .onnx
-Route::get('/models/rf_model.onnx', function () {
-    $path = storage_path('app/models/rf_model.onnx'); 
-    
-    // PERBAIKAN: Jika file belum ada, kembalikan JSON error 404, jangan biarkan melempar HTML
-    if (!File::exists($path)) {
-        return response()->json([
-            'status' => 'error',
-            'message' => 'Model file not found. Please train the model first.'
-        ], 404);
-    }
-
-    ob_start('ob_gzhandler'); 
-    $response = response()->file($path, [
-        'Content-Type' => 'application/octet-stream',
-        'Cache-Control' => 'public, max-age=31536000, immutable'
-    ]);
-    ob_end_flush();
-
-    return $response;
-});
-
-// 2. Rute Khusus Pengambilan Label Kelas .json
-Route::get('/models/labels.json', function () {
-    $path = storage_path('app/models/labels.json'); 
-    
-    // PERBAIKAN: Jika file belum ada, kembalikan JSON error 404, jangan biarkan melempar HTML
-    if (!File::exists($path)) {
-        return response()->json([
-            'status' => 'error',
-            'message' => 'Labels file not found. Please train the model first.'
-        ], 404);
-    }
-
-    ob_start('ob_gzhandler'); 
-    $response = response()->file($path, [
-        'Content-Type' => 'application/json',
-        'Cache-Control' => 'public, max-age=31536000, immutable'
-    ]);
-    ob_end_flush();
-
-    return $response;
 });
 
 require __DIR__.'/auth.php';

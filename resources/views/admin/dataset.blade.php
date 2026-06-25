@@ -387,19 +387,32 @@
                 return;
             }
 
-            // Menggunakan endpoint lama '/dataset/import-sql' seperti codingan awal Anda
+            // Normalisasi baris agar pemisahan baris murni menggunakan \n (mencegah bug explode di OS Windows)
+            const normalizedSql = sqlString.replace(/\r\n/g, "\n").replace(/\r/g, "\n");
+
             fetch("{{ route('admin.dataset.import') }}", {
                 method: 'POST',
                 headers: {
                     'Content-Type': 'application/json',
+                    'Accept': 'application/json', // Memastikan Laravel mengembalikan JSON, bukan redirect halaman
                     'X-CSRF-TOKEN': csrfTokenElement.getAttribute('content')
                 },
-                body: JSON.stringify({ sql: sqlString })
+                // PERBAIKAN: Struktur data disesuaikan dengan validasi DatasetController Anda
+                body: JSON.stringify({ 
+                    format: 'sql',
+                    content: normalizedSql 
+                })
             })
-            .then(response => response.json())
+            .then(response => {
+                if (!response.ok) {
+                    throw new Error('Server merespon dengan status ' + response.status);
+                }
+                return response.json();
+            })
             .then(data => {
-                if (data.success) {
-                    alert('Dataset format SQL berhasil dieksekusi ke database!');
+                // Menyesuaikan pengecekan status sukses dari response DatasetController Anda ('success')
+                if (data.status === 'success' || data.success) {
+                    alert(data.message || 'Dataset format SQL berhasil dieksekusi ke database!');
                     if (typeof loadDatasetStats === 'function') loadDatasetStats();
                 } else {
                     alert('Gagal memproses file SQL: ' + (data.message || 'Error internal'));

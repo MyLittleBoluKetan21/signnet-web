@@ -11,7 +11,7 @@
         </span>
     </div>
 
-    <nav class="sidebar-nav flex flex-col gap-1 w-full px-3 h-[calc(100dvh-240px)] md:h-auto flex-1 overflow-y-auto overflow-x-hidden custom-scroll">
+    <nav class="sidebar-nav flex flex-col gap-1 w-full px-3 flex-1 h-[calc(100dvh-240px)] md:h-[calc(100vh-200px)] overflow-y-auto overflow-x-hidden custom-scroll">
         
         <div class="flex md:hidden md:group-hover/sidebar:flex text-[10px] font-bold text-slate-500 tracking-wider uppercase px-3 pt-3 pb-1 transition-all duration-200 whitespace-nowrap">
             Ringkasan Performa

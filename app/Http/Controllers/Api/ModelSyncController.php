@@ -33,22 +33,18 @@ class ModelSyncController extends Controller
         }
 
         try {
-            // 3. Ambil file dari request payload
             $onnxFile = $request->file('onnx_model');
             $metaFile = $request->file('meta_model');
             $labelsFile = $request->file('labels');
 
-            // 4. Pindahkan file ke target masing-masing (Otomatis menimpa file lama)
-            // rf_model.onnx dan labels.json masuk ke folder PUBLIC
-            $onnxFile->move($publicModelsDirectory, 'rf_model.onnx');
+            // PERUBAHAN: Simpan sebagai rf_model.onnx.gz di folder public
+            $onnxFile->move($publicModelsDirectory, 'rf_model.onnx.gz');
             $labelsFile->move($publicModelsDirectory, 'labels.json');
-
-            // meta_model.json masuk ke folder STORAGE (Aman dari load browser frontend)
             $metaFile->move($storageMetadataDirectory, 'meta_model.json');
 
             return response()->json([
                 'status' => 'success',
-                'message' => '🚀 [BACKEND] Berhasil menerima seluruh asset model terbaru. rf_model.onnx & labels.json disinkronkan ke public, meta_model.json disimpan di storage aman!'
+                'message' => '🚀 [BACKEND] Berhasil menerima asset terkompresi. rf_model.onnx.gz & labels.json disinkronkan ke public!'
             ], 200);
 
         } catch (\Exception $e) {

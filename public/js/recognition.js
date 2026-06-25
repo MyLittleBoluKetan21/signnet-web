@@ -13,16 +13,47 @@ window.currentDetectionMode = 'huruf';
 // =========================================================================
 // INISIALISASI MODEL AI (OPTIMASI PENUH RAM & RESOLUSI BAGI SAFARI IOS / IPHONE)
 // =========================================================================
+async function getStoredModel(dbName, storeName, key) {
+    return new Promise((resolve) => {
+        const openRequest = indexedDB.open(dbName, 1);
+        openRequest.onupgradeneeded = function() {
+            openRequest.result.createObjectStore(storeName);
+        };
+        openRequest.onsuccess = function() {
+            const db = openRequest.result;
+            const transaction = db.transaction(storeName, 'readonly');
+            const store = transaction.objectStore(storeName);
+            const getRequest = store.get(key);
+            getRequest.onsuccess = () => resolve(getRequest.result || null);
+            getRequest.onerror = () => resolve(null);
+        };
+        openRequest.onerror = () => resolve(null);
+    });
+}
+
+async function saveModelToStorage(dbName, storeName, key, data) {
+    return new Promise((resolve) => {
+        const openRequest = indexedDB.open(dbName, 1);
+        openRequest.onsuccess = function() {
+            const db = openRequest.result;
+            const transaction = db.transaction(storeName, 'readwrite');
+            const store = transaction.objectStore(storeName);
+            store.put(data, key);
+            transaction.oncomplete = () => resolve(true);
+        };
+    });
+}
+
 async function initModelAndLabels() {
     try {
         statusText.style.display = 'block';
-        statusText.innerHTML = '<i class="fas fa-spinner fa-spin"></i> Memuat Model AI ke Browser...';
+        statusText.innerHTML = '<i class="fas fa-spinner fa-spin"></i> Inisialisasi Model AI...';
         
-        // PERBAIKAN UTAMA: Fetch file labels.json super ringan hasil split backend
+        // 1. Fetch file labels.json
         const labelsResponse = await fetch('/models/labels.json');
         classLabels = await labelsResponse.json();
         
-        // SOLUSI UTAMA CRASH IPHONE: Batasi konsumsi memori ONNX Web Runtime agar tidak memicu iOS OOM
+        // Konfigurasi hemat RAM (Pertahankan bawaanmu)
         const options = {
             executionProviders: ['webgl', 'wasm'], 
             enableCpuMemArena: true,
@@ -30,13 +61,44 @@ async function initModelAndLabels() {
             extra: { session: { set_denormal_as_zero: "1" } } 
         };
 
-        // 2. Load engine ONNX runtime web session dengan konfigurasi hemat RAM
-        onnxSession = await ort.InferenceSession.create('/models/rf_model.onnx', options);      
-        console.log("✅ ONNX Session & Class Labels Berhasil Dimuat dengan Profil Hemat RAM!");
+        const DB_NAME = "SignNetCache";
+        const STORE_NAME = "models";
+        const MODEL_KEY = "rf_model";
+
+        // 2. Cek apakah model sudah ada di IndexedDB browser
+        statusText.innerHTML = '<i class="fas fa-search"></i> Memeriksa memori lokal browser...';
+        let modelBuffer = await getStoredModel(DB_NAME, STORE_NAME, MODEL_KEY);
+
+        if (!modelBuffer) {
+            // JIKA BELUM ADA DI CACHE: Download file versi .gz dari Laravel
+            statusText.innerHTML = '<i class="fas fa-cloud-download-alt"></i> Mengunduh Model Terkompresi (Pertama kali saja)...';
+            
+            const response = await fetch('/models/rf_model.onnx.gz');
+            if (!response.ok) throw new Error("Gagal download file .onnx.gz dari server");
+            
+            const compressedBuffer = await response.arrayBuffer();
+            
+            // Dekompresi file .gz secara instan di sisi browser menggunakan pako
+            statusText.innerHTML = '<i class="fas fa-compress-arrows-alt"></i> Mengekstrak model...';
+            const compressedUint8 = new Uint8Array(compressedBuffer);
+            const decompressedUint8 = pako.ungzip(compressedUint8);
+            modelBuffer = decompressedUint8.buffer;
+
+            // Simpan hasil ekstrak ke IndexedDB agar kunjungan berikutnya instan
+            await saveModelToStorage(DB_NAME, STORE_NAME, MODEL_KEY, modelBuffer);
+            console.log("💾 Model ONNX berhasil disimpan ke IndexedDB browser!");
+        } else {
+            console.log("⚡ [CACHE HIT] Model ONNX ditemukan di memori lokal, memuat instan!");
+        }
+
+        // 3. Load engine ONNX runtime web menggunakan buffer dari memori lokal/ekstrak
+        statusText.innerHTML = '<i class="fas fa-bolt"></i> Mengaktifkan sistem deteksi...';
+        onnxSession = await ort.InferenceSession.create(modelBuffer, options);      
+        console.log("✅ ONNX Session berhasil diaktifkan!");
 
         statusText.innerHTML = '<i class="fas fa-check-circle" style="color: #10b981;"></i> AI Siap! Posisikan tangan Anda';
     } catch (error) {
-        console.error("⚠️ Gagal memuat aset model local:", error);
+        console.error("⚠️ Gagal memuat aset model:", error);
         statusText.innerHTML = '<i class="fas fa-exclamation-triangle" style="color: #ef4444;"></i> Gagal Memuat Model AI';
     }
 }

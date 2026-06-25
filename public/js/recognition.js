@@ -18,15 +18,9 @@ async function initModelAndLabels() {
         statusText.style.display = 'block';
         statusText.innerHTML = '<i class="fas fa-spinner fa-spin"></i> Memuat Model AI ke Browser...';
         
-        // =========================================================================
-        // OPTIMASI INSTAN: Hardcode classLabels agar tidak perlu download JSON 11 ribu data
-        // =========================================================================
-        classLabels = [
-            '0', '1', '2', '3', '4', '5', '6', '7', '8', '9',
-            'A', 'B', 'C', 'D', 'E', 'F', 'G', 'H', 'I', 'J', 
-            'K', 'L', 'M', 'N', 'O', 'P', 'Q', 'R', 'S', 'T', 
-            'U', 'V', 'W', 'X', 'Y', 'Z'
-        ];
+        // PERBAIKAN UTAMA: Fetch file labels.json super ringan hasil split backend
+        const labelsResponse = await fetch('/models/labels.json');
+        classLabels = await labelsResponse.json();
         
         // SOLUSI UTAMA CRASH IPHONE: Batasi konsumsi memori ONNX Web Runtime agar tidak memicu iOS OOM
         const options = {

@@ -388,7 +388,7 @@
             }
 
             // Menggunakan endpoint lama '/dataset/import-sql' seperti codingan awal Anda
-            fetch('/dataset/import-sql', {
+            fetch("{{ route('admin.dataset.import') }}", {
                 method: 'POST',
                 headers: {
                     'Content-Type': 'application/json',

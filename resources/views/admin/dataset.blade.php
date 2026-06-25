@@ -337,11 +337,10 @@
 
         function selectDownloadFormat(format) {
             closeDownloadModal();
-            // Menuju endpoint controller berdasarkan format yang dipilih pengguna
             window.location.href = "{{ route('admin.dataset.download') }}?format=" + format;
         }
 
-        /* ==================== PROCESS FILE IMPORT ==================== */
+        /* ==================== PROCESS FILE IMPORT (KEMBALI KE LOGIC LAMA) ==================== */
         function handleFileImport(event, format) {
             const file = event.target.files[0];
             if (!file) return;
@@ -352,7 +351,14 @@
                 reader.onload = function(e) {
                     try {
                         const jsonData = JSON.parse(e.target.result);
-                        sendImportPayload('json', jsonData);
+                        if (typeof handleJsonUpload === 'function') {
+                            handleJsonUpload(jsonData);
+                        } else if (typeof handleFileImportOriginal === 'function') {
+                            handleFileImportOriginal(event);
+                        } else {
+                            console.log('JSON Data Loaded:', jsonData);
+                            alert('File JSON terbaca berhasil. Implementasikan fungsi handleJsonUpload() Anda.');
+                        }
                     } catch (error) {
                         alert('Format struktur JSON tidak valid!');
                     }
@@ -362,45 +368,43 @@
             else if (format === 'sql') {
                 reader.onload = function(e) {
                     const sqlContent = e.target.result;
-                    sendImportPayload('sql', sqlContent);
+                    uploadSqlContent(sqlContent);
                 };
                 reader.readAsText(file);
             }
 
+            // Reset value agar file yang sama bisa di-upload ulang jika diperlukan
             event.target.value = '';
         }
 
-        function sendImportPayload(formatType, contentData) {
+        function uploadSqlContent(sqlString) {
             const csrfTokenElement = document.querySelector('meta[name="csrf-token"]');
             if (!csrfTokenElement) {
                 alert('CSRF Token tidak ditemukan!');
                 return;
             }
 
-            fetch("{{ route('admin.dataset.import') }}", {
+            // Menggunakan endpoint lama '/dataset/import-sql' seperti codingan awal Anda
+            fetch('/dataset/import-sql', {
                 method: 'POST',
                 headers: {
                     'Content-Type': 'application/json',
-                    'Accept': 'application/json',
                     'X-CSRF-TOKEN': csrfTokenElement.getAttribute('content')
                 },
-                body: JSON.stringify({ 
-                    format: formatType,
-                    content: contentData 
-                })
+                body: JSON.stringify({ sql: sqlString })
             })
             .then(response => response.json())
             .then(data => {
-                if (data.success || data.status === 'success') {
-                    alert(data.message || 'Dataset berhasil diproses ke database!');
+                if (data.success) {
+                    alert('Dataset format SQL berhasil dieksekusi ke database!');
                     if (typeof loadDatasetStats === 'function') loadDatasetStats();
                 } else {
-                    alert('Gagal memproses file: ' + (data.message || 'Error internal backend'));
+                    alert('Gagal memproses file SQL: ' + (data.message || 'Error internal'));
                 }
             })
             .catch(error => {
                 console.error('Error:', error);
-                alert('Terjadi kesalahan jaringan saat mentransfer payload dataset.');
+                alert('Terjadi kesalahan jaringan saat memproses SQL Script.');
             });
         }
     </script>

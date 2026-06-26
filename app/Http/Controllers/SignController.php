@@ -42,8 +42,8 @@ class SignController extends Controller
                 File::makeDirectory($destinationPath, 0755, true);
             }
 
-            // Gunakan storeAs atau move dengan pengecekan
-            $request->file('onnx_model')->move($destinationPath, 'rf_model.onnx');
+            // PERBAIKAN: Nama file disimpan sebagai rf_model.onnx.gz sesuai kiriman Gzip dari Colab
+            $request->file('onnx_model')->move($destinationPath, 'rf_model.onnx.gz');
             $request->file('labels')->move($destinationPath, 'labels.json');
 
             $storageMetadataDirectory = storage_path('app/ai_metadata');

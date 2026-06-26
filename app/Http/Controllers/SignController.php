@@ -12,16 +12,17 @@ use Illuminate\Support\Facades\File;
 class SignController extends Controller
 {
     private string $flaskUrl;
+    private string $metaPath;
 
     public function __construct()
     {
         // 1. Mengarah langsung ke URL publik terowongan Localtunnel Google Colab kamu
         $this->flaskUrl = 'https://signnet-ai-skripsi-anda.loca.lt';
+        $this->metaPath = storage_path('app/ai_metadata/meta_model.json');
     }
 
     // =========================================================================
     // BARU & MODIFIKASI: Menerima file biner dan JSON kiriman dari Flask secara internal
-    // Tambahkan penanda session/waktu agar polling tahu ada file baru masuk
     // =========================================================================
     public function updateModelFiles(Request $request)
     {
@@ -49,10 +50,9 @@ class SignController extends Controller
             if (!File::exists($storageMetadataDirectory)) {
                 File::makeDirectory($storageMetadataDirectory, 0755, true);
             }
+            
+            // Menyimpan file meta_model.json terbaru (Berfungsi sebagai flag pemicu UI)
             $request->file('meta_model')->move($storageMetadataDirectory, 'meta_model.json');
-
-            // Kasih tanda ke session kalau proses simpan file training yang baru telah SELESAI
-            session(['training_just_finished' => true]);
 
             return response()->json(['status' => 'success', 'message' => 'Update berhasil'], 200);
 
@@ -68,15 +68,10 @@ class SignController extends Controller
     public function getLatestEvaluation()
     {
         try {
-            $filePath = storage_path('app/ai_metadata/meta_model.json');
-
-            // Cek apakah file meta_model.json ada dan session menandakan training baru saja selesai
-            if (File::exists($filePath) && session('training_just_finished') === true) {
-                $jsonContent = File::get($filePath);
+            // Cek fisik: Jika file meta_model.json ada, berarti Flask telah sukses mengirimkan file hasil training terbaru
+            if (File::exists($this->metaPath)) {
+                $jsonContent = File::get($this->metaPath);
                 $data = json_decode($jsonContent, true);
-
-                // Hapus tanda session agar polling berikutnya tidak mengira ini file baru lagi
-                session()->forget('training_just_finished');
 
                 return response()->json([
                     'status' => 'ready',
@@ -85,7 +80,7 @@ class SignController extends Controller
                 ], 200);
             }
 
-            // Jika file belum di-update / Google Colab masih memproses training
+            // Jika file belum ada/di-delete saat start, berarti model masih dalam proses pelatihan di Google Colab
             return response()->json([
                 'status' => 'pending',
                 'message' => 'Model masih dalam proses pelatihan di Google Colab...'
@@ -95,6 +90,48 @@ class SignController extends Controller
             return response()->json([
                 'status' => 'error',
                 'message' => 'Gagal membaca file evaluasi: ' . $e->getMessage()
+            ], 500);
+        }
+    }
+
+    // =========================================================================
+    // PERBAIKAN: Diubah menjadi pemicu Asinkronus agar terhindar dari timeout 503 Railway
+    // =========================================================================
+    public function trainModel()
+    {
+        try {
+            $totalData = Datasets::count();
+            if ($totalData < 5) {
+                return response()->json([
+                    'status'  => 'error',
+                    'message' => "Dataset terlalu sedikit ({$totalData} sampel). Minimal 5 sampel diperlukan.",
+                ], 400);
+            }
+
+            // HAPUS file metadata lama sebelum training dimulai
+            // Ini krusial agar polling JS mendeteksi status 'pending' (404/file tidak ditemukan)
+            if (File::exists($this->metaPath)) {
+                File::delete($this->metaPath);
+            }
+
+            // Tembak Google Colab dengan timeout sangat tipis (2 detik). 
+            try {
+                Http::timeout(2)->post("{$this->flaskUrl}/train-cloud");
+            } catch (\Illuminate\Http\Client\ConnectionException $e) {
+                // Abaikan timeout koneksi pendek karena sinyal pemicu sudah masuk ke Flask background thread
+            }
+
+            return response()->json([
+                'status'  => 'success',
+                'message' => 'Proses training berhasil dipicu di Cloud Server! Hasilnya akan dikirim otomatis ke server setelah selesai.',
+                'async'   => true
+            ], 200);
+
+        } catch (\Exception $e) {
+            Log::error('trainModel error: ' . $e->getMessage());
+            return response()->json([
+                'status'  => 'error',
+                'message' => 'Terjadi kesalahan sistem: ' . $e->getMessage(),
             ], 500);
         }
     }
@@ -145,9 +182,11 @@ class SignController extends Controller
 
             $featuresData = $request->input('features');
 
+            $featuresJson = is_array($featuresData) ? json_encode($featuresData) : $featuresData;
+
             Datasets::create([
                 'admin_id' => $adminId,
-                'features' => $featuresData, 
+                'features' => $featuresJson, 
                 'label'    => strtoupper(trim($request->input('label'))),
             ]);
 
@@ -167,67 +206,6 @@ class SignController extends Controller
                 'status'  => 'error',
                 'message' => 'Gagal menyimpan data: ' . $e->getMessage(),
             ], 500);
-        }
-    }
-
-    // =========================================================================
-    // PERBAIKAN: Diubah menjadi pemicu Asinkronus agar terhindar dari timeout 503 Railway
-    // =========================================================================
-    public function trainModel()
-    {
-        try {
-            $totalData = Datasets::count();
-            if ($totalData < 5) {
-                return response()->json([
-                    'status'  => 'error',
-                    'message' => "Dataset terlalu sedikit ({$totalData} sampel). Minimal 5 sampel diperlukan.",
-                ], 400);
-            }
-
-            // Pastikan flag session dibersihkan saat tombol training baru ditekan
-            session(['training_just_finished' => false]);
-
-            // Tembak Google Colab dengan timeout sangat tipis (2 detik). 
-            try {
-                Http::timeout(2)->post("{$this->flaskUrl}/train-cloud");
-            } catch (\Illuminate\Http\Client\ConnectionException $e) {
-                // Abaikan timeout koneksi pendek karena sinyal pemicu sudah masuk ke Flask
-            }
-
-            return response()->json([
-                'status'  => 'success',
-                'message' => 'Proses training berhasil dipicu di Cloud Server! Hasilnya akan dikirim otomatis ke server setelah selesai.',
-                'async'   => true
-            ], 200);
-
-        } catch (\Exception $e) {
-            Log::error('trainModel error: ' . $e->getMessage());
-            return response()->json([
-                'status'  => 'error',
-                'message' => 'Terjadi kesalahan sistem: ' . $e->getMessage(),
-            ], 500);
-        }
-    }
-
-    public function getModelMetrics()
-    {
-        try {
-            $response = Http::timeout(5)->get("{$this->flaskUrl}/api/get_model_stats");
-
-            if ($response->successful()) {
-                return response()->json($response->json(), 200);
-            }
-
-            return response()->json([
-                'status'  => 'error',
-                'message' => 'Model belum pernah di-training.',
-                ], 404);
-
-        } catch (\Exception $e) {
-            return response()->json([
-                'status'  => 'error',
-                'message' => 'Server Python Cloud offline.',
-            ], 503);
         }
     }
 
@@ -253,10 +231,8 @@ class SignController extends Controller
             }
 
             try {
-                $response = Http::timeout(5)->get("{$this->flaskUrl}/api/get_model_stats");
-                
-                if ($response->successful()) {
-                    $flaskData = $response->json();
+                if (File::exists($this->metaPath)) {
+                    $flaskData = json_decode(File::get($this->metaPath), true);
                     $accuracy = $flaskData['accuracy'] ?? 0.0;
                     $confusionMatrix = $flaskData['confusion_matrix'] ?? [];
                     
@@ -273,7 +249,7 @@ class SignController extends Controller
                     }
                 }
             } catch (\Exception $flaskEx) {
-                Log::warning('Dashboard memuat data saat Flask offline: ' . $flaskEx->getMessage());
+                Log::warning('Dashboard memuat data local storage error: ' . $flaskEx->getMessage());
             }
 
             return response()->json([

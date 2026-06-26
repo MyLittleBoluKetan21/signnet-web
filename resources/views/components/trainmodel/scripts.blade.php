@@ -369,7 +369,6 @@
     const btn = document.getElementById('btn-train');
     const originalHTML = btn.innerHTML;
     
-    // Inisialisasi AbortController untuk request trigger awal (jika diperlukan)
     const controller = new AbortController();
     const timeoutId = setTimeout(() => controller.abort(), 300000); 
 
@@ -385,7 +384,6 @@
         return;
     }
 
-    // 1. Kirim request pertama untuk memicu (trigger) training berjalan di background server
     fetch('/train-model', {
         method: 'POST',
         headers: {
@@ -406,10 +404,8 @@
         return res.json();
     })
     .then(data => {
-        // Jika server langsung merespon sukses tanda training dimulai
         addLog("SISTEM: Training berhasil dipicu. Menunggu proses kalkulasi data & evaluasi model...");
-        
-        // JALANKAN POLLING: Cek berkala ke Laravel sampai data akurasi & report benar-benar siap
+        // JALANKAN POLLING: Mulai interval pengecekan berkala ke server Laravel
         jalankanPollingEvaluasi(btn, originalHTML);
     })
     .catch(err => {
@@ -427,43 +423,33 @@
     });
 }
 
-// Fungsi pendukung untuk mengecek status evaluasi model secara berkala tanpa me-refresh halaman
 function jalankanPollingEvaluasi(btn, originalHTML) {
-    let waktuTungguMaksimal = 60; // 60 kali cek x 5 detik = 5 menit maksimal batas tunggu
+    let waktuTungguMaksimal = 120; // Diperpanjang ke 120 cek x 5 detik = 10 menit maksimal batas tunggu
     let hitungCek = 0;
 
     const intervalCek = setInterval(() => {
         hitungCek++;
 
-        // Sasar route khusus Laravel yang bertugas membaca file json evaluasi terbaru (misal: meta_model.json)
         fetch('/get-latest-evaluation')
         .then(res => {
             if (!res.ok) throw new Error();
             return res.json();
         })
         .then(response => {
-            // Jika backend mengirim status 'ready' atau data classification_report sudah terisi utuh:
-            if (response.status === 'ready' || (response.classification_report && Object.keys(response.classification_report).length > 0)) {
+            // Evaluasi apakah response berstatus 'ready' dari pembacaan file json
+            if (response.status === 'ready') {
                 clearInterval(intervalCek);
                 
-                // ---------------------------------------------------------------------
-                // LOGIKA DESIGN, WARNA, DAN MODAL ANDA (SAMA PERSIS TANPA PERUBAHAN)
-                // ---------------------------------------------------------------------
                 const akurasi = (response.accuracy * 100).toFixed(1);
                 addLog(`SUKSES: Model diperbarui! Akurasi: ${akurasi}%`);
 
                 el.accuracyValue.innerText = akurasi + '%';
-                
-                // Amankan performa: Kosongkan kontainer terlebih dahulu
                 el.reportTable.innerHTML = '';
 
                 const report = response.classification_report || {};
                 const skip   = ['accuracy', 'macro avg', 'weighted avg'];
-
-                // Gunakan array buffer untuk menampung HTML di memori RAM terlebih dahulu
                 let htmlBuffer = [];
 
-                // Cek apakah mode saat ini adalah light mode atau dark mode
                 const isLightMode = document.documentElement.getAttribute('data-theme') === 'light' || !document.documentElement.classList.contains('dark');
 
                 Object.keys(report).forEach(key => {
@@ -471,7 +457,6 @@ function jalankanPollingEvaluasi(btn, originalHTML) {
                     const metrics  = report[key];
                     const f1       = (metrics['f1-score'] * 100).toFixed(0);
                     
-                    // --- FIXED COLOR MENGGUNAKAN HEX CODE (ANTI-PURGE TAILWIND) ---
                     let hexColor = '#ef4444'; 
                     let hexBorder = 'rgba(239, 68, 68, 0.3)';
                     
@@ -510,22 +495,28 @@ function jalankanPollingEvaluasi(btn, originalHTML) {
 
                 el.reportTable.innerHTML = htmlBuffer.join('');
 
-                openModalResult();
-                state.sessionStats = {};
-                updateUIStats();
+                // MEMANGGIL MODAL HASIL EVALUASI AGAR MUNCUL KE LAYAR USER
+                if (typeof openModalResult === "function") {
+                    openModalResult();
+                } else {
+                    console.error("Fungsi openModalResult() tidak ditemukan di skrip blade Anda.");
+                }
+
+                if (typeof updateUIStats === "function") {
+                    if (typeof state !== 'undefined') state.sessionStats = {};
+                    updateUIStats();
+                }
 
                 AppAlert.fire('success', 'Training Selesai', `Model AI berhasil diperbarui dengan akurasi <b>${akurasi}%</b>.`); 
                 
-                // Kembalikan tombol ke keadaan semula
                 btn.disabled = false;
                 btn.innerHTML = originalHTML;
             }
         })
         .catch(() => {
-            // Tetap lakukan looping jika ditolak/masih proses update file di server
+            // Melewati error penolakan selama file belum siap dibuat kembali di storage Laravel
         });
 
-        // Jika batas waktu polling habis (contoh 5 menit) dan hasil belum ada
         if (hitungCek >= waktuTungguMaksimal) {
             clearInterval(intervalCek);
             addLog("ERROR: Waktu sinkronisasi habis. Server background memproses terlalu lama.");
@@ -533,7 +524,7 @@ function jalankanPollingEvaluasi(btn, originalHTML) {
             btn.disabled = false;
             btn.innerHTML = originalHTML;
         }
-    }, 5000); // Lakukan hit mengecek data setiap 5 detik sekali
+    }, 5000);
 }
 
     function drawGuide(w, h) {

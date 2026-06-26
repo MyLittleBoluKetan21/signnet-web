@@ -225,6 +225,7 @@ async function runLocalPrediction(features) {
         console.log("Nama Output:", outputNames);
         console.log("Data Label:", outputMap[labelOutputName].data);
         console.log("Data Probabilitas Mentah:", outputMap[probOutputName].data);
+        console.log("outputNames:", onnxSession.outputNames);
         
         if (labelTensor && labelTensor.data) {
             const predictedIndex = Number(labelTensor.data[0]);
@@ -270,26 +271,16 @@ async function runLocalPrediction(features) {
             // =========================================================================
             // PROSES SELEKSI SKOR AKURASI (CONFIDENCE SCORE)
             // =========================================================================
-            let confidenceScore = "0"; 
+            let confidenceScore = "0";
             if (probOutputName && outputMap[probOutputName]) {
                 const probTensor = outputMap[probOutputName];
-                if (probTensor.data) {
-                    
-                    // Hitung total jumlah kelas terdaftar
-                    const totalClasses = classLabels.length; 
-                    
-                    // Ambil index probabilitas yang tepat untuk frame saat ini
-                    // (predictedIndex * totalClasses) + predictedIndex memastikan kita mengambil kolom yang benar
-                    const targetIndex = predictedIndex; 
-                    
-                    const rawScore = probTensor.data[targetIndex]; 
-                    
-                    if (rawScore !== undefined) {
-                        confidenceScore = (rawScore * 100).toFixed(1); 
-                    } else {
-                        // Jika struktur tensor berbentuk flat array satu dimensi untuk seluruh batch
-                        confidenceScore = (Math.max(...probTensor.data) * 100).toFixed(1);
-                    }
+                if (probTensor.data && probTensor.data.length === classLabels.length) {
+                    // Ambil skor langsung dari predictedIndex
+                    const rawScore = probTensor.data[predictedIndex];
+                    confidenceScore = (rawScore * 100).toFixed(1);
+                } else if (probTensor.data) {
+                    // Fallback: ambil nilai tertinggi dari array
+                    confidenceScore = (Math.max(...probTensor.data) * 100).toFixed(1);
                 }
             }
 
@@ -297,7 +288,7 @@ async function runLocalPrediction(features) {
             // EVALUASI KELAYAKAN UI & RENDER NOTIFIKASI STATUS
             // =========================================================================
             if (isLabelAllowed && classLabels.length > 0 && predictedIndex < classLabels.length) {
-                if (parseFloat(confidenceScore) > 30.0) {
+                if (parseFloat(confidenceScore) > 25.0) {
                     updateUI(stringLabel, confidenceScore); 
 
                     if (!isModeChangingNotification) {

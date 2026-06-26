@@ -217,6 +217,7 @@ async function runLocalPrediction(features) {
 
         // =========================================================================
         // LOGIKA PEMETAAN AMBIGUITAS GESTUR KEMBAR (HURUF <-> ANGKA)
+        // Diupdate berdasarkan confusion matrix model v2 (9269 data)
         // =========================================================================
         if (window.currentDetectionMode === 'angka') {
             const u = stringLabel.toUpperCase();
@@ -224,14 +225,13 @@ async function runLocalPrediction(features) {
             else if (u === 'W') stringLabel = '6';
             else if (u === 'F') stringLabel = '9';
             else if (u === 'B') stringLabel = '4';
-            else if (u === 'O') stringLabel = '0'; // O sering salah prediksi jadi 0
-            else if (u === 'I') stringLabel = '1'; // I mirip 1
+            else if (u === 'L') stringLabel = '5'; // L mirip 5 di mode angka
         } else if (window.currentDetectionMode === 'huruf') {
-            if (stringLabel === '2')                            stringLabel = 'V';
-            else if (['6','7','8'].includes(stringLabel))       stringLabel = 'W';
-            else if (stringLabel === '9')                       stringLabel = 'F';
-            else if (stringLabel === '4')                       stringLabel = 'B';
-            else if (stringLabel === '1')                       stringLabel = 'L'; // 1 sering mirip L di huruf
+            if (stringLabel === '2')                      stringLabel = 'V';
+            else if (['6','7','8'].includes(stringLabel)) stringLabel = 'W';
+            else if (stringLabel === '9')                 stringLabel = 'F';
+            else if (stringLabel === '4')                 stringLabel = 'B';
+            else if (stringLabel === '5')                 stringLabel = 'L'; // 5 mirip L di mode huruf
         }
 
         // =========================================================================
@@ -251,9 +251,10 @@ async function runLocalPrediction(features) {
         }
 
         // =========================================================================
-        // THRESHOLD ADAPTIF: kelas ambigu butuh confidence lebih tinggi
+        // THRESHOLD ADAPTIF — diupdate berdasarkan F1 score model baru
+        // Kelas dengan F1 < 0.90 dapat threshold lebih ketat
         // =========================================================================
-        const ambiguousClasses = ['0', 'O', 'V', '2', '3', '4', 'D', '1', 'I', 'B'];
+        const ambiguousClasses = ['V', '2', '8', '5', 'C', 'D', 'Z', 'L'];
         const threshold = ambiguousClasses.includes(stringLabel) ? 50.0 : 25.0;
 
         // =========================================================================
@@ -262,7 +263,6 @@ async function runLocalPrediction(features) {
         if (isLabelAllowed && classLabels.length > 0 && predictedIndex < classLabels.length) {
             if (parseFloat(confidenceScore) > threshold) {
 
-                // Debounce: tampilkan hanya jika 2 frame berturut-turut sama
                 if (stringLabel === lastPredictedLabel) {
                     consecutiveCount++;
                 } else {
@@ -275,7 +275,6 @@ async function runLocalPrediction(features) {
                     if (!isModeChangingNotification)
                         statusText.innerHTML = `<i class="fas fa-hand-sparkles" style="color: #10b981;"></i> Tangan terdeteksi.`;
                 }
-                // Kalau belum konsisten, UI tidak berubah — biarkan nilai sebelumnya
 
             } else {
                 consecutiveCount = 0;

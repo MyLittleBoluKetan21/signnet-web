@@ -366,133 +366,175 @@
     }
 
     function prosesTraining() {
-        const btn = document.getElementById('btn-train');
-        const originalHTML = btn.innerHTML;
-        
-        // 1. Inisialisasi AbortController untuk membuat timeout kustom (misal: 5 menit / 300.000 ms)
-        const controller = new AbortController();
-        const timeoutId = setTimeout(() => controller.abort(), 300000); 
+    const btn = document.getElementById('btn-train');
+    const originalHTML = btn.innerHTML;
+    
+    // Inisialisasi AbortController untuk request trigger awal (jika diperlukan)
+    const controller = new AbortController();
+    const timeoutId = setTimeout(() => controller.abort(), 300000); 
 
-        btn.disabled = true;
-        btn.innerHTML = `<i class="fa-solid fa-spinner animate-spin"></i> MEMPROSES TRAINING...`;
-        addLog("SISTEM: Memulai proses training model AI... (Mohon tunggu, proses ini memakan waktu beberapa menit)");
+    btn.disabled = true;
+    btn.innerHTML = `<i class="fa-solid fa-spinner animate-spin"></i> MEMPROSES TRAINING...`;
+    addLog("SISTEM: Memulai proses training model AI di background thread...");
 
-        const csrfToken = document.querySelector('meta[name="csrf-token"]')?.content;
-        if (!csrfToken) {
-            addLog("ERROR: CSRF Token tidak ditemukan. Refresh halaman.");
-            return;
-        }
-
-        // 2. Kirim request dengan menyertakan signal dari AbortController
-        fetch('/train-model', {
-            method: 'POST',
-            headers: {
-                'Content-Type': 'application/json',
-                'Accept': 'application/json',
-                'X-CSRF-TOKEN': document.querySelector('meta[name="csrf-token"]').content
-            },
-            body: JSON.stringify({ trigger: 'train' }),
-            signal: controller.signal
-        })
-        .then(res => {
-            clearTimeout(timeoutId);
-            if (!res.ok) {
-                return res.json().then(errData => {
-                    throw new Error(errData.message || `Server error: ${res.status}`);
-                });
-            }
-            return res.json().then(data => ({ ok: res.ok, data }));
-        })
-        .then(({ ok, data }) => {
-            if (!ok || data.status !== 'success') {
-                throw new Error(data.message || 'Training gagal tanpa keterangan.');
-            }
-
-            const akurasi = (data.accuracy * 100).toFixed(1);
-            addLog(`SUKSES: Model diperbarui! Akurasi: ${akurasi}%`);
-
-            el.accuracyValue.innerText = akurasi + '%';
-            
-            // Amankan performa: Kosongkan kontainer terlebih dahulu
-            el.reportTable.innerHTML = '';
-
-            const report = data.classification_report || {};
-            const skip   = ['accuracy', 'macro avg', 'weighted avg'];
-
-            // Gunakan array buffer untuk menampung HTML di memori RAM terlebih dahulu
-            let htmlBuffer = [];
-
-            // Cek apakah mode saat ini adalah light mode atau dark mode
-            const isLightMode = document.documentElement.getAttribute('data-theme') === 'light' || !document.documentElement.classList.contains('dark');
-
-            Object.keys(report).forEach(key => {
-                if (skip.includes(key)) return;
-                const metrics  = report[key];
-                const f1       = (metrics['f1-score'] * 100).toFixed(0);
-                
-                // --- FIXED COLOR MENGGUNAKAN HEX CODE (ANTI-PURGE TAILWIND) ---
-                let hexColor = '#ef4444'; 
-                let hexBorder = 'rgba(239, 68, 68, 0.3)';
-                
-                if (f1 >= 70) {
-                    hexColor = isLightMode ? '#059669' : '#34d399'; 
-                    hexBorder = isLightMode ? 'rgba(5, 150, 105, 0.3)' : 'rgba(52, 211, 153, 0.3)';
-                } else if (f1 >= 40) {
-                    hexColor = isLightMode ? '#d97706' : '#fbbf24'; 
-                    hexBorder = isLightMode ? 'rgba(217, 119, 6, 0.3)' : 'rgba(251, 191, 36, 0.3)';
-                } else {
-                    hexColor = isLightMode ? '#dc2626' : '#f87171'; 
-                }
-
-                const innerBorderColor = isLightMode ? 'rgba(0, 0, 0, 0.1)' : 'rgba(255, 255, 255, 0.08)';
-                const innerTextColor = isLightMode ? 'text-slate-800' : 'text-white';
-
-                htmlBuffer.push(`
-                    <div class="bg-slate-900/50 dark:bg-slate-900/50 border p-4 rounded-3xl animate__animated animate__fadeInUp" style="border-color: ${hexBorder};">
-                        <div class="text-center mb-3">
-                            <span class="text-[10px] font-black text-slate-500 uppercase tracking-widest">Label: ${key}</span>
-                            <div class="text-2xl font-black" style="color: ${hexColor};">${f1}% <span class="text-[8px] text-slate-500">F1</span></div>
-                        </div>
-                        <div class="grid grid-cols-2 gap-2 pt-3" style="border-top: 1px solid ${innerBorderColor};">
-                            <div class="text-center">
-                                <p class="text-[8px] text-slate-500 uppercase font-bold">Precision</p>
-                                <p class="text-xs font-bold ${innerTextColor}">${(metrics.precision * 100).toFixed(0)}%</p>
-                            </div>
-                            <div class="text-center" style="border-left: 1px solid ${innerBorderColor};">
-                                <p class="text-[8px] text-slate-500 uppercase font-bold">Recall</p>
-                                <p class="text-xs font-bold ${innerTextColor}">${(metrics.recall * 100).toFixed(0)}%</p>
-                            </div>
-                        </div>
-                    </div>
-                `);
-            });
-
-            el.reportTable.innerHTML = htmlBuffer.join('');
-
-            openModalResult();
-            state.sessionStats = {};
-            updateUIStats();
-
-            AppAlert.fire('success', 'Training Selesai', `Model AI berhasil diperbarui dengan akurasi <b>${akurasi}%</b>.`); 
-        })
-        .catch(err => {
-            clearTimeout(timeoutId);
-            
-            // Cek apakah error dipicu oleh abort() akibat batas waktu habis
-            if (err.name === 'AbortError') {
-                addLog("ERROR: Waktu tunggu (timeout) habis. Server memproses terlalu lama.");
-                AppAlert.fire('error', 'Waktu Tunggu Habis', 'Proses training memakan waktu terlalu lama di server. Silakan cek status server Flask/Railway Anda.');
-            } else {
-                const msg = err?.message || 'Terjadi kesalahan sistem.';
-                addLog(`ERROR: ${msg}`);
-                AppAlert.fire('error', 'Training Gagal', msg);
-            }
-        })
-        .finally(() => {
-            btn.disabled   = false;
-            btn.innerHTML  = originalHTML;
-        });
+    const csrfToken = document.querySelector('meta[name="csrf-token"]')?.content;
+    if (!csrfToken) {
+        addLog("ERROR: CSRF Token tidak ditemukan. Refresh halaman.");
+        btn.disabled = false;
+        btn.innerHTML = originalHTML;
+        return;
     }
+
+    // 1. Kirim request pertama untuk memicu (trigger) training berjalan di background server
+    fetch('/train-model', {
+        method: 'POST',
+        headers: {
+            'Content-Type': 'application/json',
+            'Accept': 'application/json',
+            'X-CSRF-TOKEN': csrfToken
+        },
+        body: JSON.stringify({ trigger: 'train' }),
+        signal: controller.signal
+    })
+    .then(res => {
+        clearTimeout(timeoutId);
+        if (!res.ok) {
+            return res.json().then(errData => {
+                throw new Error(errData.message || `Server error: ${res.status}`);
+            });
+        }
+        return res.json();
+    })
+    .then(data => {
+        // Jika server langsung merespon sukses tanda training dimulai
+        addLog("SISTEM: Training berhasil dipicu. Menunggu proses kalkulasi data & evaluasi model...");
+        
+        // JALANKAN POLLING: Cek berkala ke Laravel sampai data akurasi & report benar-benar siap
+        jalankanPollingEvaluasi(btn, originalHTML);
+    })
+    .catch(err => {
+        clearTimeout(timeoutId);
+        if (err.name === 'AbortError') {
+            addLog("ERROR: Waktu tunggu (timeout) habis saat memicu training.");
+            AppAlert.fire('error', 'Waktu Tunggu Habis', 'Proses training memakan waktu terlalu lama di server.');
+        } else {
+            const msg = err?.message || 'Terjadi kesalahan sistem.';
+            addLog(`ERROR: ${msg}`);
+            AppAlert.fire('error', 'Training Gagal', msg);
+        }
+        btn.disabled = false;
+        btn.innerHTML = originalHTML;
+    });
+}
+
+// Fungsi pendukung untuk mengecek status evaluasi model secara berkala tanpa me-refresh halaman
+function jalankanPollingEvaluasi(btn, originalHTML) {
+    let waktuTungguMaksimal = 60; // 60 kali cek x 5 detik = 5 menit maksimal batas tunggu
+    let hitungCek = 0;
+
+    const intervalCek = setInterval(() => {
+        hitungCek++;
+
+        // Sasar route khusus Laravel yang bertugas membaca file json evaluasi terbaru (misal: meta_model.json)
+        fetch('/get-latest-evaluation')
+        .then(res => {
+            if (!res.ok) throw new Error();
+            return res.json();
+        })
+        .then(response => {
+            // Jika backend mengirim status 'ready' atau data classification_report sudah terisi utuh:
+            if (response.status === 'ready' || (response.classification_report && Object.keys(response.classification_report).length > 0)) {
+                clearInterval(intervalCek);
+                
+                // ---------------------------------------------------------------------
+                // LOGIKA DESIGN, WARNA, DAN MODAL ANDA (SAMA PERSIS TANPA PERUBAHAN)
+                // ---------------------------------------------------------------------
+                const akurasi = (response.accuracy * 100).toFixed(1);
+                addLog(`SUKSES: Model diperbarui! Akurasi: ${akurasi}%`);
+
+                el.accuracyValue.innerText = akurasi + '%';
+                
+                // Amankan performa: Kosongkan kontainer terlebih dahulu
+                el.reportTable.innerHTML = '';
+
+                const report = response.classification_report || {};
+                const skip   = ['accuracy', 'macro avg', 'weighted avg'];
+
+                // Gunakan array buffer untuk menampung HTML di memori RAM terlebih dahulu
+                let htmlBuffer = [];
+
+                // Cek apakah mode saat ini adalah light mode atau dark mode
+                const isLightMode = document.documentElement.getAttribute('data-theme') === 'light' || !document.documentElement.classList.contains('dark');
+
+                Object.keys(report).forEach(key => {
+                    if (skip.includes(key)) return;
+                    const metrics  = report[key];
+                    const f1       = (metrics['f1-score'] * 100).toFixed(0);
+                    
+                    // --- FIXED COLOR MENGGUNAKAN HEX CODE (ANTI-PURGE TAILWIND) ---
+                    let hexColor = '#ef4444'; 
+                    let hexBorder = 'rgba(239, 68, 68, 0.3)';
+                    
+                    if (f1 >= 70) {
+                        hexColor = isLightMode ? '#059669' : '#34d399'; 
+                        hexBorder = isLightMode ? 'rgba(5, 150, 105, 0.3)' : 'rgba(52, 211, 153, 0.3)';
+                    } else if (f1 >= 40) {
+                        hexColor = isLightMode ? '#d97706' : '#fbbf24'; 
+                        hexBorder = isLightMode ? 'rgba(217, 119, 6, 0.3)' : 'rgba(251, 191, 36, 0.3)';
+                    } else {
+                        hexColor = isLightMode ? '#dc2626' : '#f87171'; 
+                    }
+
+                    const innerBorderColor = isLightMode ? 'rgba(0, 0, 0, 0.1)' : 'rgba(255, 255, 255, 0.08)';
+                    const innerTextColor = isLightMode ? 'text-slate-800' : 'text-white';
+
+                    htmlBuffer.push(`
+                        <div class="bg-slate-900/50 dark:bg-slate-900/50 border p-4 rounded-3xl animate__animated animate__fadeInUp" style="border-color: ${hexBorder};">
+                            <div class="text-center mb-3">
+                                <span class="text-[10px] font-black text-slate-500 uppercase tracking-widest">Label: ${key}</span>
+                                <div class="text-2xl font-black" style="color: ${hexColor};">${f1}% <span class="text-[8px] text-slate-500">F1</span></div>
+                            </div>
+                            <div class="grid grid-cols-2 gap-2 pt-3" style="border-top: 1px solid ${innerBorderColor};">
+                                <div class="text-center">
+                                    <p class="text-[8px] text-slate-500 uppercase font-bold">Precision</p>
+                                    <p class="text-xs font-bold ${innerTextColor}">${(metrics.precision * 100).toFixed(0)}%</p>
+                                </div>
+                                <div class="text-center" style="border-left: 1px solid ${innerBorderColor};">
+                                    <p class="text-[8px] text-slate-500 uppercase font-bold">Recall</p>
+                                    <p class="text-xs font-bold ${innerTextColor}">${(metrics.recall * 100).toFixed(0)}%</p>
+                                </div>
+                            </div>
+                        </div>
+                    `);
+                });
+
+                el.reportTable.innerHTML = htmlBuffer.join('');
+
+                openModalResult();
+                state.sessionStats = {};
+                updateUIStats();
+
+                AppAlert.fire('success', 'Training Selesai', `Model AI berhasil diperbarui dengan akurasi <b>${akurasi}%</b>.`); 
+                
+                // Kembalikan tombol ke keadaan semula
+                btn.disabled = false;
+                btn.innerHTML = originalHTML;
+            }
+        })
+        .catch(() => {
+            // Tetap lakukan looping jika ditolak/masih proses update file di server
+        });
+
+        // Jika batas waktu polling habis (contoh 5 menit) dan hasil belum ada
+        if (hitungCek >= waktuTungguMaksimal) {
+            clearInterval(intervalCek);
+            addLog("ERROR: Waktu sinkronisasi habis. Server background memproses terlalu lama.");
+            AppAlert.fire('error', 'Waktu Tunggu Habis', 'Proses sinkronisasi file evaluasi terputus. Silakan periksa status training di log server Anda.');
+            btn.disabled = false;
+            btn.innerHTML = originalHTML;
+        }
+    }, 5000); // Lakukan hit mengecek data setiap 5 detik sekali
+}
 
     function drawGuide(w, h) {
         ctx.strokeStyle = "rgba(99, 102, 241, 0.4)";

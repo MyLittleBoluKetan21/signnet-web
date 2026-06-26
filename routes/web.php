@@ -30,6 +30,7 @@ Route::middleware('auth:admin')->group(function () {
     Route::get('/get-total-samples', [SignController::class, 'getModelStats'])->name('sign.stats');
     Route::post('/collect-data', [SignController::class, 'collect'])->name('sign.collect');
     Route::post('/train-model', [SignController::class, 'trainModel'])->name('sign.train');
+    Route::get('/get-latest-evaluation', [SignController::class, 'getLatestEvaluation']);
 
     Route::get('/api/model-metrics', [SignController::class, 'getModelMetrics'])->name('sign.metrics');
     Route::get('/api/dashboard-stats', [SignController::class, 'getDashboardStats'])->name('admin.dashboard.stats');

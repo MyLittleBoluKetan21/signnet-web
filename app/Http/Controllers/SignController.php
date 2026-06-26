@@ -15,16 +15,17 @@ class SignController extends Controller
 
     public function __construct()
     {
-        // 1. DIUBAH: Mengarah langsung ke URL publik terowongan Localtunnel Google Colab kamu
+        // 1. Mengarah langsung ke URL publik terowongan Localtunnel Google Colab kamu
         $this->flaskUrl = 'https://signnet-ai-skripsi-anda.loca.lt';
     }
 
     // =========================================================================
-    // BARU: Menerima file biner dan JSON kiriman dari Flask secara internal
+    // BARU & MODIFIKASI: Menerima file biner dan JSON kiriman dari Flask secara internal
+    // Tambahkan penanda session/waktu agar polling tahu ada file baru masuk
     // =========================================================================
     public function updateModelFiles(Request $request)
     {
-        // PERBAIKAN: Beri waktu dan memori ekstra untuk memproses file besar
+        // Beri waktu dan memori ekstra untuk memproses file besar
         set_time_limit(0);
         ini_set('memory_limit', '512M');
 
@@ -50,11 +51,51 @@ class SignController extends Controller
             }
             $request->file('meta_model')->move($storageMetadataDirectory, 'meta_model.json');
 
+            // Kasih tanda ke session kalau proses simpan file training yang baru telah SELESAI
+            session(['training_just_finished' => true]);
+
             return response()->json(['status' => 'success', 'message' => 'Update berhasil'], 200);
 
         } catch (\Exception $e) {
             Log::error('updateModelFiles error: ' . $e->getMessage());
             return response()->json(['status' => 'error', 'message' => $e->getMessage()], 500);
+        }
+    }
+
+    // =========================================================================
+    // TUGAS BARU: Endpoint khusus yang dicari oleh fungsi polling JavaScript Anda
+    // =========================================================================
+    public function getLatestEvaluation()
+    {
+        try {
+            $filePath = storage_path('app/ai_metadata/meta_model.json');
+
+            // Cek apakah file meta_model.json ada dan session menandakan training baru saja selesai
+            if (File::exists($filePath) && session('training_just_finished') === true) {
+                $jsonContent = File::get($filePath);
+                $data = json_decode($jsonContent, true);
+
+                // Hapus tanda session agar polling berikutnya tidak mengira ini file baru lagi
+                session()->forget('training_just_finished');
+
+                return response()->json([
+                    'status' => 'ready',
+                    'accuracy' => $data['accuracy'] ?? 0.0,
+                    'classification_report' => $data['classification_report'] ?? []
+                ], 200);
+            }
+
+            // Jika file belum di-update / Google Colab masih memproses training
+            return response()->json([
+                'status' => 'pending',
+                'message' => 'Model masih dalam proses pelatihan di Google Colab...'
+            ], 200);
+
+        } catch (\Exception $e) {
+            return response()->json([
+                'status' => 'error',
+                'message' => 'Gagal membaca file evaluasi: ' . $e->getMessage()
+            ], 500);
         }
     }
 
@@ -143,9 +184,10 @@ class SignController extends Controller
                 ], 400);
             }
 
+            // Pastikan flag session dibersihkan saat tombol training baru ditekan
+            session(['training_just_finished' => false]);
+
             // Tembak Google Colab dengan timeout sangat tipis (2 detik). 
-            // Kita sengaja menangkap Exception-nya karena request akan diputus sengaja oleh Laravel
-            // setelah Flask Colab menerima sinyal training awal agar tidak menggantung.
             try {
                 Http::timeout(2)->post("{$this->flaskUrl}/train-cloud");
             } catch (\Illuminate\Http\Client\ConnectionException $e) {
@@ -170,7 +212,6 @@ class SignController extends Controller
     public function getModelMetrics()
     {
         try {
-            // 3. DIUBAH: Mengganti endpoint pencatatan metrics dari local ke Cloud
             $response = Http::timeout(5)->get("{$this->flaskUrl}/api/get_model_stats");
 
             if ($response->successful()) {
@@ -191,7 +232,7 @@ class SignController extends Controller
     }
 
     // =========================================================================
-    // BARU: Fungsi khusus yang digabungkan untuk halaman dashboard.blade.php
+    // Fungsi khusus yang digabungkan untuk halaman dashboard.blade.php
     // =========================================================================
     public function getDashboardStats()
     {
@@ -212,7 +253,6 @@ class SignController extends Controller
             }
 
             try {
-                // 4. DIUBAH: Mengganti endpoint pemanggilan statistik dashboard ke Cloud
                 $response = Http::timeout(5)->get("{$this->flaskUrl}/api/get_model_stats");
                 
                 if ($response->successful()) {

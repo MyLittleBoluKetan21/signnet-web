@@ -8,6 +8,11 @@ let onnxSession = null;
 let classLabels = [];
 let isModeChangingNotification = false;
 
+// DEBOUNCE: variabel untuk cek konsistensi antar frame
+let lastPredictedLabel = "-";
+let consecutiveCount = 0;
+const CONSECUTIVE_NEEDED = 2;
+
 window.currentDetectionMode = 'huruf'; 
 
 // =========================================================================
@@ -49,11 +54,9 @@ async function initModelAndLabels() {
         statusText.style.display = 'block';
         statusText.innerHTML = '<i class="fas fa-spinner fa-spin"></i> Inisialisasi Model AI...';
         
-        // 1. Fetch file labels.json
         const labelsResponse = await fetch('/models/labels.json');
         classLabels = await labelsResponse.json();
         
-        // Konfigurasi hemat RAM (Pertahankan bawaanmu)
         const options = {
             executionProviders: ['webgl', 'wasm'], 
             enableCpuMemArena: true,
@@ -65,12 +68,10 @@ async function initModelAndLabels() {
         const STORE_NAME = "models";
         const MODEL_KEY = "rf_model";
 
-        // 2. Cek apakah model sudah ada di IndexedDB browser
         statusText.innerHTML = '<i class="fas fa-search"></i> Memeriksa memori lokal browser...';
         let modelBuffer = await getStoredModel(DB_NAME, STORE_NAME, MODEL_KEY);
 
         if (!modelBuffer) {
-            // JIKA BELUM ADA DI CACHE: Download file versi .gz dari Laravel
             statusText.innerHTML = '<i class="fas fa-cloud-download-alt"></i> Mengunduh Model Terkompresi (Pertama kali saja)...';
             
             const response = await fetch('/models/rf_model.onnx.gz');
@@ -78,20 +79,17 @@ async function initModelAndLabels() {
             
             const compressedBuffer = await response.arrayBuffer();
             
-            // Dekompresi file .gz secara instan di sisi browser menggunakan pako
             statusText.innerHTML = '<i class="fas fa-compress-arrows-alt"></i> Mengekstrak model...';
             const compressedUint8 = new Uint8Array(compressedBuffer);
             const decompressedUint8 = pako.ungzip(compressedUint8);
             modelBuffer = decompressedUint8.buffer;
 
-            // Simpan hasil ekstrak ke IndexedDB agar kunjungan berikutnya instan
             await saveModelToStorage(DB_NAME, STORE_NAME, MODEL_KEY, modelBuffer);
             console.log("💾 Model ONNX berhasil disimpan ke IndexedDB browser!");
         } else {
             console.log("⚡ [CACHE HIT] Model ONNX ditemukan di memori lokal, memuat instan!");
         }
 
-        // 3. Load engine ONNX runtime web menggunakan buffer dari memori lokal/ekstrak
         statusText.innerHTML = '<i class="fas fa-bolt"></i> Mengaktifkan sistem deteksi...';
         onnxSession = await ort.InferenceSession.create(modelBuffer, options);      
         console.log("✅ ONNX Session berhasil diaktifkan!");
@@ -103,7 +101,6 @@ async function initModelAndLabels() {
     }
 }
 
-// FUNGSI KHUSUS UPDATE WARNA TOMBOL
 window.updateButtonVisuals = function(mode) {
     const btnHuruf = document.getElementById('btnModeHuruf');
     const btnAngka = document.getElementById('btnModeAngka');
@@ -118,7 +115,6 @@ window.updateButtonVisuals = function(mode) {
             btnHuruf.style.background = blueColor;
             btnHuruf.style.color = '#fff';
             btnHuruf.style.boxShadow = '0 2px 8px rgba(37, 99, 235, 0.35)';
-            
             btnAngka.style.background = 'transparent';
             btnAngka.style.color = textMutedColor;
             btnAngka.style.boxShadow = 'none';
@@ -126,7 +122,6 @@ window.updateButtonVisuals = function(mode) {
             btnAngka.style.background = greenColor;
             btnAngka.style.color = '#fff';
             btnAngka.style.boxShadow = '0 2px 8px rgba(16, 185, 129, 0.35)';
-            
             btnHuruf.style.background = 'transparent';
             btnHuruf.style.color = textMutedColor;
             btnHuruf.style.boxShadow = 'none';
@@ -134,30 +129,26 @@ window.updateButtonVisuals = function(mode) {
     }
 }
 
-// PENGENDALI UTAMA PERGANTIAN MODE DENGAN PENGUNCI 1 DETIK & ANIMASI RINGAN
 window.changeMode = function(mode) {
     window.currentDetectionMode = mode;
-    
-    // Update tampilan tombol secara visual
     window.updateButtonVisuals(mode);
 
-    // AKTIFKAN LOCK SISTEM NOTIFIKASI TRANSISI STATUS TEKS
+    // Reset debounce saat mode berganti
+    lastPredictedLabel = "-";
+    consecutiveCount = 0;
+
     isModeChangingNotification = true;
     statusText.style.display = 'block';
     
-    // Mengganti fa-pulse yang berat dengan kombinasi ikon statis yang clean dan ringan
     if (mode === 'huruf') {
         statusText.innerHTML = '<i class="fas fa-font" style="color: #3b82f6;"></i> Mengalihkan ke <b>Mode HURUF (A - Z)</b>';
     } else if (mode === 'angka') {
         statusText.innerHTML = '<i class="fas fa-hashtag" style="color: #10b981;"></i> Mengalihkan ke <b>Mode ANGKA (0 - 9)</b>';
     }
 
-    // Dipangkas tepat menjadi 1 detik (1000ms) agar terasa instan dan snappy
     setTimeout(() => {
         isModeChangingNotification = false;
     }, 1000);
-
-    console.log("🔄 Mode deteksi aktif berganti ke:", window.currentDetectionMode);
 }
 
 function extractFeatures(results) {
@@ -214,16 +205,13 @@ async function runLocalPrediction(features) {
 
     try {
         const inputTensor = new ort.Tensor('float32', new Float32Array(features), [1, 126]);
-
         const feeds = { 'float_input': inputTensor };
-        // FIX 1: Hardcode nama output, jangan pakai outputNames[0/1]
         const outputMap = await onnxSession.run(feeds, ['label', 'probabilities']);
         const labelTensor = outputMap['label'];
         const probTensor  = outputMap['probabilities'];
 
         if (!labelTensor?.data) return;
 
-        // FIX 2: BigInt64Array perlu Number() — sudah ada, tetap pertahankan
         const predictedIndex = Number(labelTensor.data[0]);
         let stringLabel = classLabels[predictedIndex] || "-";
 
@@ -231,49 +219,74 @@ async function runLocalPrediction(features) {
         // LOGIKA PEMETAAN AMBIGUITAS GESTUR KEMBAR (HURUF <-> ANGKA)
         // =========================================================================
         if (window.currentDetectionMode === 'angka') {
-            const upperLabel = stringLabel.toUpperCase();
-            if (upperLabel === 'V') stringLabel = '2';
-            else if (upperLabel === 'W') stringLabel = '6';
-            else if (upperLabel === 'F') stringLabel = '9';
-            else if (upperLabel === 'B') stringLabel = '4';
+            const u = stringLabel.toUpperCase();
+            if (u === 'V')      stringLabel = '2';
+            else if (u === 'W') stringLabel = '6';
+            else if (u === 'F') stringLabel = '9';
+            else if (u === 'B') stringLabel = '4';
+            else if (u === 'O') stringLabel = '0'; // O sering salah prediksi jadi 0
+            else if (u === 'I') stringLabel = '1'; // I mirip 1
         } else if (window.currentDetectionMode === 'huruf') {
-            if (stringLabel === '2') stringLabel = 'V';
-            else if (stringLabel === '6' || stringLabel === '7' || stringLabel === '8') stringLabel = 'W';
-            else if (stringLabel === '9') stringLabel = 'F';
-            else if (stringLabel === '4') stringLabel = 'B';
+            if (stringLabel === '2')                            stringLabel = 'V';
+            else if (['6','7','8'].includes(stringLabel))       stringLabel = 'W';
+            else if (stringLabel === '9')                       stringLabel = 'F';
+            else if (stringLabel === '4')                       stringLabel = 'B';
+            else if (stringLabel === '1')                       stringLabel = 'L'; // 1 sering mirip L di huruf
         }
 
         // =========================================================================
         // VALIDASI DAN FILTER REGEX BERDASARKAN MODE AKTIF
         // =========================================================================
-        let isLabelAllowed = true;
         const isAngka = /^[0-9]$/.test(stringLabel);
+        let isLabelAllowed = true;
         if (window.currentDetectionMode === 'angka' && !isAngka) isLabelAllowed = false;
         else if (window.currentDetectionMode === 'huruf' && isAngka) isLabelAllowed = false;
 
         // =========================================================================
-        // CONFIDENCE SCORE — langsung dari index prediksi
+        // CONFIDENCE SCORE
         // =========================================================================
         let confidenceScore = "0";
         if (probTensor?.data) {
-            const rawScore = probTensor.data[predictedIndex];
-            confidenceScore = (rawScore * 100).toFixed(1);
+            confidenceScore = (probTensor.data[predictedIndex] * 100).toFixed(1);
         }
 
         // =========================================================================
-        // EVALUASI KELAYAKAN UI & RENDER NOTIFIKASI STATUS
+        // THRESHOLD ADAPTIF: kelas ambigu butuh confidence lebih tinggi
+        // =========================================================================
+        const ambiguousClasses = ['0', 'O', 'V', '2', '3', '4', 'D', '1', 'I', 'B'];
+        const threshold = ambiguousClasses.includes(stringLabel) ? 50.0 : 25.0;
+
+        // =========================================================================
+        // EVALUASI KELAYAKAN UI & DEBOUNCE
         // =========================================================================
         if (isLabelAllowed && classLabels.length > 0 && predictedIndex < classLabels.length) {
-            if (parseFloat(confidenceScore) > 25.0) {
-                updateUI(stringLabel, confidenceScore);
-                if (!isModeChangingNotification)
-                    statusText.innerHTML = `<i class="fas fa-hand-sparkles" style="color: #10b981;"></i> Tangan terdeteksi.`;
+            if (parseFloat(confidenceScore) > threshold) {
+
+                // Debounce: tampilkan hanya jika 2 frame berturut-turut sama
+                if (stringLabel === lastPredictedLabel) {
+                    consecutiveCount++;
+                } else {
+                    consecutiveCount = 1;
+                    lastPredictedLabel = stringLabel;
+                }
+
+                if (consecutiveCount >= CONSECUTIVE_NEEDED) {
+                    updateUI(stringLabel, confidenceScore);
+                    if (!isModeChangingNotification)
+                        statusText.innerHTML = `<i class="fas fa-hand-sparkles" style="color: #10b981;"></i> Tangan terdeteksi.`;
+                }
+                // Kalau belum konsisten, UI tidak berubah — biarkan nilai sebelumnya
+
             } else {
+                consecutiveCount = 0;
+                lastPredictedLabel = "-";
                 updateUI("-", "0");
                 if (!isModeChangingNotification)
                     statusText.innerHTML = '<i class="fas fa-hand-paper" style="color: #f59e0b;"></i> Posisi gestur kurang jelas...';
             }
         } else {
+            consecutiveCount = 0;
+            lastPredictedLabel = "-";
             updateUI("-", "0");
             if (!isModeChangingNotification)
                 statusText.innerHTML = `<i class="fas fa-ban" style="color: #ef4444;"></i> Isyarat diabaikan (Bukan Mode ${window.currentDetectionMode.toUpperCase()})`;
@@ -285,7 +298,6 @@ async function runLocalPrediction(features) {
 }
 
 function onResults(results) {
-    // OPTIMASI MEMORI: Hindari re-alokasi dimensi canvas tiap frame agar Safari tidak mengalami memory leak
     if (canvasElement.width !== videoElement.videoWidth || canvasElement.height !== videoElement.videoHeight) {
         canvasElement.width = videoElement.videoWidth;
         canvasElement.height = videoElement.videoHeight;
@@ -293,12 +305,10 @@ function onResults(results) {
     
     canvasCtx.save();
     canvasCtx.clearRect(0, 0, canvasElement.width, canvasElement.height);
-    
     canvasCtx.translate(canvasElement.width, 0);
     canvasCtx.scale(-1, 1);
     canvasCtx.drawImage(results.image, 0, 0, canvasElement.width, canvasElement.height);
 
-    // OPTIMASI PENGULANGAN: Gunakan native incremental 'for' loop untuk menghemat performa prosesor seluler lama
     if (results.multiHandLandmarks) {
         const totalHands = results.multiHandLandmarks.length;
         for (let i = 0; i < totalHands; i++) {
@@ -308,12 +318,12 @@ function onResults(results) {
 
             drawConnectors(canvasCtx, landmarks, HAND_CONNECTIONS, {
                 color: handColor,
-                lineWidth: 3 // Dipertipis agar rendering GPU seluler lebih enteng
+                lineWidth: 3
             });
             drawLandmarks(canvasCtx, landmarks, {
                 color: '#ffffff',
                 lineWidth: 1,
-                radius: 2 // Diperkecil untuk meminimalisir beban titik raster
+                radius: 2
             });
         }
     }
@@ -329,6 +339,8 @@ function onResults(results) {
             runLocalPrediction(features);
         }
     } else {
+        consecutiveCount = 0;
+        lastPredictedLabel = "-";
         updateUI("-", 0);
         if (!isModeChangingNotification) {
             statusText.innerHTML = '<i class="fas fa-video" style="color: #9ca3af;"></i> Mencari Tangan di Area Kamera...';
@@ -345,7 +357,7 @@ const hands = new Hands({
 
 hands.setOptions({
     maxNumHands: 2,
-    modelComplexity: 0, // Tetap gunakan tipe model Lite (0) demi FPS tinggi lintas device
+    modelComplexity: 0,
     minDetectionConfidence: 0.8,
     minTrackingConfidence: 0.7
 });
@@ -354,7 +366,7 @@ hands.onResults(onResults);
 
 let isProcessingFrame = false;
 let lastFrameTime = 0;
-const FPS_THROTTLE = 1000 / 20; // BATAS AMAN IPHONE: Maksimal 20 FPS ke MediaPipe agar RAM tidak menumpuk (OOM)
+const FPS_THROTTLE = 1000 / 20;
 
 async function predictLoop() {
     if (videoElement.paused || videoElement.ended) {
@@ -364,7 +376,6 @@ async function predictLoop() {
 
     const now = Date.now();
     
-    // PEMBATAS FRAME (THROTTLE): Memberikan jeda waktu bagi Garbage Collector WebKit Safari untuk membersihkan cache RAM
     if (!isProcessingFrame && videoElement.readyState >= 3 && (now - lastFrameTime >= FPS_THROTTLE)) { 
         isProcessingFrame = true;
         lastFrameTime = now;
@@ -374,7 +385,7 @@ async function predictLoop() {
         } catch (err) {
             console.error("MediaPipe Stream Error:", err);
         } finally {
-            isProcessingFrame = false; // Memastikan flag tidak mengunci mati jika terjadi anomali stream
+            isProcessingFrame = false;
         }
     }
     
@@ -382,10 +393,8 @@ async function predictLoop() {
 }
 
 window.addEventListener('DOMContentLoaded', async () => {
-    // 1. Jalankan inisialisasi model AI
     await initModelAndLabels();
     
-    // 2. Membuka stream kamera native dengan konfigurasi parameter aman
     try {
         const constraints = {
             video: { 
@@ -398,13 +407,9 @@ window.addEventListener('DOMContentLoaded', async () => {
         
         const stream = await navigator.mediaDevices.getUserMedia(constraints);
         videoElement.srcObject = stream;
-        
-        // HACK ANTI-REFRESH LINTAS SAFARI IOS:
-        // Tanpa instruksi inline-play dan muting ini, sistem iOS akan menutup paksa canvas / mereload tab.
         videoElement.setAttribute('playsinline', true);
         videoElement.setAttribute('webkit-playsinline', true);
         videoElement.muted = true; 
-        
         videoElement.play();
         
         videoElement.onloadeddata = () => {

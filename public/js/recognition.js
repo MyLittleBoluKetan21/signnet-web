@@ -221,6 +221,10 @@ async function runLocalPrediction(features) {
         const feeds = { 'float_input': inputTensor };
         const outputMap = await onnxSession.run(feeds, outputNames);
         const labelTensor = outputMap[labelOutputName];
+
+        console.log("Nama Output:", outputNames);
+        console.log("Data Label:", outputMap[labelOutputName].data);
+        console.log("Data Probabilitas Mentah:", outputMap[probOutputName].data);
         
         if (labelTensor && labelTensor.data) {
             const predictedIndex = Number(labelTensor.data[0]);
@@ -270,8 +274,22 @@ async function runLocalPrediction(features) {
             if (probOutputName && outputMap[probOutputName]) {
                 const probTensor = outputMap[probOutputName];
                 if (probTensor.data) {
-                    const maxRawScore = Math.max(...probTensor.data);
-                    confidenceScore = (maxRawScore * 100).toFixed(1); 
+                    
+                    // Hitung total jumlah kelas terdaftar
+                    const totalClasses = classLabels.length; 
+                    
+                    // Ambil index probabilitas yang tepat untuk frame saat ini
+                    // (predictedIndex * totalClasses) + predictedIndex memastikan kita mengambil kolom yang benar
+                    const targetIndex = predictedIndex; 
+                    
+                    const rawScore = probTensor.data[targetIndex]; 
+                    
+                    if (rawScore !== undefined) {
+                        confidenceScore = (rawScore * 100).toFixed(1); 
+                    } else {
+                        // Jika struktur tensor berbentuk flat array satu dimensi untuk seluruh batch
+                        confidenceScore = (Math.max(...probTensor.data) * 100).toFixed(1);
+                    }
                 }
             }
 
@@ -408,8 +426,8 @@ window.addEventListener('DOMContentLoaded', async () => {
     try {
         const constraints = {
             video: { 
-                width:  { ideal: 1280 },
-                height: { ideal: 720 },
+                width: { ideal: 640 }, 
+                height: { ideal: 480 }, 
                 frameRate: { ideal: 24, max: 30 } 
             },
             audio: false

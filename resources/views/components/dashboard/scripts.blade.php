@@ -250,13 +250,19 @@
         defaultLi.onclick = () => selectCustomOption("", "Pilih Label");
         listContainer.appendChild(defaultLi);
 
-        Object.keys(reportData).filter(k => !['accuracy', 'macro avg', 'weighted avg'].includes(k)).sort((a,b)=>a.localeCompare(b, undefined, {numeric:true})).forEach(label => {
-            const li = document.createElement('li');
-            li.className = "px-3 py-1.5 text-[10px] font-bold text-slate-700 dark:text-indigo-300 hover:bg-indigo-50 dark:hover:bg-indigo-950/40 hover:text-indigo-600 dark:hover:text-indigo-200 cursor-pointer transition-colors";
-            li.textContent = `Kelas ${label}`;
-            li.onclick = () => selectCustomOption(label, `Kelas ${label}`);
-            listContainer.appendChild(li);
-        });
+        Object.keys(reportData)
+            .filter(k => {
+                const cleanKey = k.toLowerCase().trim();
+                return !['accuracy', 'macro avg', 'weighted avg'].includes(cleanKey);
+            })
+            .sort((a, b) => a.localeCompare(b, undefined, { numeric: true }))
+            .forEach(label => {
+                const li = document.createElement('li');
+                li.className = "px-3 py-1.5 text-[10px] font-bold text-slate-700 dark:text-indigo-300 hover:bg-indigo-50 dark:hover:bg-indigo-950/40 hover:text-indigo-600 dark:hover:text-indigo-200 cursor-pointer transition-colors";
+                li.textContent = `Kelas ${label}`;
+                li.onclick = () => selectCustomOption(label, `Kelas ${label}`);
+                listContainer.appendChild(li);
+            });
     }
 
     function updateLabelEvaluation() {
@@ -392,7 +398,7 @@
             return !['accuracy', 'macro avg', 'weighted avg'].includes(cleanKey);
         })
         .sort((a, b) => a.localeCompare(b, undefined, { numeric: true }));
-        
+
         const counts = labels.map(l => {
             const dataTarget = reportData[l] || reportData[l.toUpperCase()] || reportData[l.toLowerCase()];
             return dataTarget ? (dataTarget.support || 0) : 0;

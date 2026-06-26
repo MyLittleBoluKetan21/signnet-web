@@ -261,6 +261,7 @@ async function runLocalPrediction(features) {
         if (probTensor?.data) {
             confidenceScore = (probTensor.data[predictedIndex] * 100).toFixed(1);
         }
+        console.log(`Label: ${stringLabel} | Confidence: ${confidenceScore}% | Index: ${predictedIndex}`);
 
         // =========================================================================
         // THRESHOLD ADAPTIF — diupdate berdasarkan F1 score model baru

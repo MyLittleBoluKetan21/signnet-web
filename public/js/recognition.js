@@ -180,7 +180,19 @@ function extractFeatures(results) {
 function updateUI(prediksi, akurasi) {
     document.getElementById('prediction-result').innerText = prediksi;
     document.getElementById('accuracy-value').innerText = akurasi + "%";
-    document.getElementById('accuracy-bar').style.width = akurasi + "%";
+    
+    const bar = document.getElementById('accuracy-bar');
+    bar.style.width = akurasi + "%";
+
+    // Warna bar berdasarkan confidence
+    const score = parseFloat(akurasi);
+    if (score >= 70) {
+        bar.style.background = '#10b981'; // hijau — yakin
+    } else if (score >= 50) {
+        bar.style.background = '#f59e0b'; // kuning — ragu
+    } else {
+        bar.style.background = '#ef4444'; // merah — tidak yakin
+    }
 }
 
 function drawGuide(ctx, width, height) {
@@ -357,8 +369,8 @@ const hands = new Hands({
 hands.setOptions({
     maxNumHands: 2,
     modelComplexity: 0,
-    minDetectionConfidence: 0.8,
-    minTrackingConfidence: 0.7
+    minDetectionConfidence: 0.85,
+    minTrackingConfidence: 0.75
 });
 
 hands.onResults(onResults);

@@ -365,8 +365,8 @@ const hands = new Hands({
 hands.setOptions({
     maxNumHands: 2,
     modelComplexity: 0, // Tetap gunakan tipe model Lite (0) demi FPS tinggi lintas device
-    minDetectionConfidence: 0.5,
-    minTrackingConfidence: 0.5
+    minDetectionConfidence: 0.8,
+    minTrackingConfidence: 0.7
 });
 
 hands.onResults(onResults);

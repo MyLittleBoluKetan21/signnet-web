@@ -320,13 +320,6 @@ async function runLocalPrediction(features) {
         console.log(`Label: ${stringLabel} | Confidence: ${confidenceScore}% | Index: ${predictedIndex}`);
 
         // =========================================================================
-        // THRESHOLD ADAPTIF — diupdate berdasarkan F1 score model baru
-        // Kelas dengan F1 < 0.90 dapat threshold lebih ketat
-        // =========================================================================
-        const ambiguousClasses = ['V', '2', '8', '5', 'C', 'D', 'Z', 'L'];
-        const threshold = ambiguousClasses.includes(stringLabel) ? 50.0 : 25.0;
-
-        // =========================================================================
         // EVALUASI KELAYAKAN UI & DEBOUNCE
         // =========================================================================
         if (isLabelAllowed && classLabels.length > 0 && predictedIndex < classLabels.length) {

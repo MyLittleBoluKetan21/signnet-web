@@ -66,7 +66,7 @@ async function initModelAndLabels() {
 
         const DB_NAME = "SignNetCache";
         const STORE_NAME = "models";
-        const MODEL_KEY = "rf_model";
+        const MODEL_KEY = "rf_model_v2";
 
         statusText.innerHTML = '<i class="fas fa-search"></i> Memeriksa memori lokal browser...';
         let modelBuffer = await getStoredModel(DB_NAME, STORE_NAME, MODEL_KEY);

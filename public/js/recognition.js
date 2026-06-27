@@ -281,19 +281,26 @@ async function runLocalPrediction(features) {
         // Diupdate berdasarkan confusion matrix model v2 (9269 data)
         // =========================================================================
         if (window.currentDetectionMode === 'angka') {
-            const u = stringLabel.toUpperCase();
-            if (u === 'V')      stringLabel = '2';
-            else if (u === 'W') stringLabel = '6';
-            else if (u === 'F') stringLabel = '9';
-            else if (u === 'B') stringLabel = '4';
-            else if (u === 'L') stringLabel = '5'; // L mirip 5 di mode angka
-        } else if (window.currentDetectionMode === 'huruf') {
-            if (stringLabel === '2')                      stringLabel = 'V';
-            else if (['6','7','8'].includes(stringLabel)) stringLabel = 'W';
-            else if (stringLabel === '9')                 stringLabel = 'F';
-            else if (stringLabel === '4')                 stringLabel = 'B';
-            else if (stringLabel === '5')                 stringLabel = 'L'; // 5 mirip L di mode huruf
-        }
+                const upperLabel = stringLabel.toUpperCase();
+                
+                if (upperLabel === 'V') {
+                    stringLabel = '2';
+                } 
+                else if (upperLabel === 'W') {
+                    stringLabel = '6'; 
+                } 
+                else if (upperLabel === 'F') {
+                    stringLabel = '9';
+                } 
+                else if (upperLabel === 'B') {
+                    stringLabel = '4';
+                }
+            } else if (window.currentDetectionMode === 'huruf') {
+                if (stringLabel === '2') stringLabel = 'V';
+                else if (stringLabel === '6' || stringLabel === '7' || stringLabel === '8') stringLabel = 'W';
+                else if (stringLabel === '9') stringLabel = 'F';
+                else if (stringLabel === '4') stringLabel = 'B';
+            }
 
         // =========================================================================
         // VALIDASI DAN FILTER REGEX BERDASARKAN MODE AKTIF
@@ -306,9 +313,17 @@ async function runLocalPrediction(features) {
         // =========================================================================
         // CONFIDENCE SCORE
         // =========================================================================
-        let confidenceScore = "0";
-        if (probTensor?.data) {
-            confidenceScore = (probTensor.data[predictedIndex] * 100).toFixed(1);
+        let confidenceScore = "0"; 
+
+        // 1. Pastikan tensor output-nya ada dulu (mengadopsi keamanan Opsi 2)
+        if (probOutputName && outputMap[probOutputName]) {
+            const probTensor = outputMap[probOutputName];
+            
+            // 2. Ambil nilai berdasarkan predictedIndex (mengadopsi akurasi Opsi 1)
+            if (probTensor.data && typeof predictedIndex !== 'undefined') {
+                const rawScore = probTensor.data[predictedIndex];
+                confidenceScore = (rawScore * 100).toFixed(1); 
+            }
         }
         console.log(`Label: ${stringLabel} | Confidence: ${confidenceScore}% | Index: ${predictedIndex}`);
 

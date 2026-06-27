@@ -323,7 +323,7 @@ async function runLocalPrediction(features) {
         // EVALUASI KELAYAKAN UI & DEBOUNCE
         // =========================================================================
         if (isLabelAllowed && classLabels.length > 0 && predictedIndex < classLabels.length) {
-            if (parseFloat(confidenceScore) > threshold) {
+            if (parseFloat(confidenceScore) > 50.0) {
 
                 if (stringLabel === lastPredictedLabel) {
                     consecutiveCount++;

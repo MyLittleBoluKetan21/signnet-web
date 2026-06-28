@@ -365,10 +365,17 @@ async function runLocalPrediction(features) {
 function onResults(results) {
     const wrapper = canvasElement.parentElement;
     const w = wrapper.clientWidth;
-    const h = Math.round(w * (3 / 4));
+    let aspectRatio = 4 / 3; // default fallback
+    if (videoElement.videoWidth > 0 && videoElement.videoHeight > 0) {
+        aspectRatio = videoElement.videoWidth / videoElement.videoHeight;
+    }
+    const h = Math.round(w / aspectRatio);
     if (canvasElement.width !== w || canvasElement.height !== h) {
         canvasElement.width = w;
         canvasElement.height = h;
+        // Sync tinggi wrapper agar tidak gepeng
+        wrapper.style.height = h + 'px';
+        wrapper.style.aspectRatio = 'unset';
     }
     
     canvasCtx.save();

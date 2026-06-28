@@ -421,9 +421,9 @@ const hands = new Hands({
 
 hands.setOptions({
     maxNumHands: 2,
-    modelComplexity: 0,
-    minDetectionConfidence: 0.85,
-    minTrackingConfidence: 0.75
+    modelComplexity: 1,
+    minDetectionConfidence: 0.6,
+    minTrackingConfidence: 0.6
 });
 
 hands.onResults(onResults);

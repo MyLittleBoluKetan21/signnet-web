@@ -365,24 +365,45 @@ async function runLocalPrediction(features) {
 function onResults(results) {
     const wrapper = canvasElement.parentElement;
     const w = wrapper.clientWidth;
-    let aspectRatio = 4 / 3; // default fallback
-    if (videoElement.videoWidth > 0 && videoElement.videoHeight > 0) {
-        aspectRatio = videoElement.videoWidth / videoElement.videoHeight;
-    }
-    const h = Math.round(w / aspectRatio);
+    const h = wrapper.clientHeight;
     if (canvasElement.width !== w || canvasElement.height !== h) {
         canvasElement.width = w;
         canvasElement.height = h;
-        // Sync tinggi wrapper agar tidak gepeng
-        wrapper.style.height = h + 'px';
-        wrapper.style.aspectRatio = 'unset';
     }
     
     canvasCtx.save();
     canvasCtx.clearRect(0, 0, canvasElement.width, canvasElement.height);
     canvasCtx.translate(canvasElement.width, 0);
     canvasCtx.scale(-1, 1);
-    canvasCtx.drawImage(results.image, 0, 0, canvasElement.width, canvasElement.height);
+    
+    // =========================================================================
+    // PERBAIKAN: Perhitungan Aspek Rasio Crop agar Kamera Tidak Gepeng di HP
+    // =========================================================================
+    const imgWidth = results.image.width;
+    const imgHeight = results.image.height;
+    
+    const inputRatio = imgWidth / imgHeight;
+    const outputRatio = canvasElement.width / canvasElement.height;
+    
+    let srcX = 0, srcY = 0, srcWidth = imgWidth, srcHeight = imgHeight;
+    
+    if (inputRatio > outputRatio) {
+        // Jika gambar terlalu lebar (Landscape), potong sisi kanan & kiri
+        srcWidth = imgHeight * outputRatio;
+        srcX = (imgWidth - srcWidth) / 2;
+    } else {
+        // Jika gambar terlalu tinggi (Portrait), potong sisi atas & bawah
+        srcHeight = imgWidth / outputRatio;
+        srcY = (imgHeight - srcHeight) / 2;
+    }
+
+    // Menggambar video asli secara proporsional (menggunakan parameter clipping)
+    canvasCtx.drawImage(
+        results.image, 
+        srcX, srcY, srcWidth, srcHeight, // Memotong gambar sumber
+        0, 0, canvasElement.width, canvasElement.height // Merender pas di canvas
+    );
+    // =========================================================================
 
     if (results.multiHandLandmarks) {
         const totalHands = results.multiHandLandmarks.length;

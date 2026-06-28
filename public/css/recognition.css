@@ -222,9 +222,9 @@ nav.scrolled {
 .camera-wrapper {
     position: relative;
     width: 100%;
+    aspect-ratio: 4/3;
     overflow: hidden;
     background: #000;
-    min-height: 200px; /* fallback kalau aspect-ratio belum render */
 }
 
 #output_canvas {
